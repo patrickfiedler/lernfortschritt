@@ -1,0 +1,374 @@
+#!/usr/bin/env python3
+"""
+Task Import Script for Lernfortschritt
+
+Import task definitions from JSON files into the database.
+
+Usage:
+    python import_task.py <task_definition.json>
+    python import_task.py --dry-run <task_definition.json>
+    python import_task.py --batch task_definitions/
+    python import_task.py --list
+"""
+
+import argparse
+import json
+import sys
+from pathlib import Path
+
+import config
+import models
+
+
+class ValidationError(Exception):
+    """Raised when task validation fails."""
+    pass
+
+
+def load_task_json(filepath):
+    """Load and parse task definition JSON."""
+    path = Path(filepath)
+    if not path.exists():
+        raise FileNotFoundError(f"File not found: {filepath}")
+
+    with open(path, 'r', encoding='utf-8') as f:
+        try:
+            data = json.load(f)
+        except json.JSONDecodeError as e:
+            raise ValidationError(f"Invalid JSON: {e}")
+
+    return data
+
+
+def validate_task_structure(data):
+    """Validate required fields are present and valid."""
+    errors = []
+
+    if 'task' not in data:
+        raise ValidationError("Missing 'task' root element")
+
+    task = data['task']
+
+    # Required fields
+    required = ['name', 'beschreibung', 'fach', 'stufe']
+    for field in required:
+        if field not in task or not task[field]:
+            errors.append(f"Missing required field: {field}")
+
+    # Validate fach
+    if 'fach' in task and task['fach'] not in config.SUBJECTS:
+        errors.append(f"Invalid fach '{task['fach']}'. Must be one of: {', '.join(config.SUBJECTS)}")
+
+    # Validate stufe
+    if 'stufe' in task and task['stufe'] not in config.LEVELS:
+        errors.append(f"Invalid stufe '{task['stufe']}'. Must be one of: {', '.join(config.LEVELS)}")
+
+    # Validate kategorie if provided
+    if 'kategorie' in task and task['kategorie'] not in ['pflicht', 'bonus']:
+        errors.append("Invalid kategorie. Must be 'pflicht' or 'bonus'")
+
+    # Validate voraussetzungen (prerequisites)
+    if 'voraussetzungen' in task:
+        if not isinstance(task['voraussetzungen'], list):
+            errors.append("voraussetzungen must be a list of task names")
+        else:
+            for i, v in enumerate(task['voraussetzungen']):
+                if not isinstance(v, str) or not v:
+                    errors.append(f"Voraussetzung {i+1} must be a non-empty string")
+
+    # Validate subtasks
+    if 'subtasks' in task:
+        if not isinstance(task['subtasks'], list):
+            errors.append("subtasks must be a list")
+        else:
+            for i, sub in enumerate(task['subtasks']):
+                if not isinstance(sub, dict):
+                    errors.append(f"Subtask {i+1} must be an object")
+                elif 'beschreibung' not in sub or not sub['beschreibung']:
+                    errors.append(f"Subtask {i+1} missing 'beschreibung'")
+
+    # Validate materials
+    if 'materials' in task:
+        if not isinstance(task['materials'], list):
+            errors.append("materials must be a list")
+        else:
+            for i, mat in enumerate(task['materials']):
+                if not isinstance(mat, dict):
+                    errors.append(f"Material {i+1} must be an object")
+                elif 'typ' not in mat:
+                    errors.append(f"Material {i+1} missing 'typ'")
+                elif mat['typ'] not in ['link', 'datei']:
+                    errors.append(f"Material {i+1} has invalid typ '{mat['typ']}'. Must be 'link' or 'datei'")
+                if 'pfad' not in mat or not mat['pfad']:
+                    errors.append(f"Material {i+1} missing 'pfad'")
+
+    # Validate quiz
+    if 'quiz' in task and task['quiz']:
+        quiz = task['quiz']
+        if 'questions' not in quiz:
+            errors.append("Quiz missing 'questions' array")
+        elif not isinstance(quiz['questions'], list):
+            errors.append("Quiz questions must be a list")
+        else:
+            for i, q in enumerate(quiz['questions']):
+                if not isinstance(q, dict):
+                    errors.append(f"Question {i+1} must be an object")
+                    continue
+                if 'text' not in q or not q['text']:
+                    errors.append(f"Question {i+1} missing 'text'")
+                if 'options' not in q or not isinstance(q['options'], list):
+                    errors.append(f"Question {i+1} missing or invalid 'options'")
+                elif len(q['options']) < 2:
+                    errors.append(f"Question {i+1} needs at least 2 options")
+                if 'correct' not in q or not isinstance(q['correct'], list):
+                    errors.append(f"Question {i+1} missing or invalid 'correct'")
+                elif 'options' in q and isinstance(q['options'], list):
+                    for idx in q.get('correct', []):
+                        if not isinstance(idx, int) or idx < 0 or idx >= len(q['options']):
+                            errors.append(f"Question {i+1} has invalid correct index: {idx}")
+
+    if errors:
+        raise ValidationError("\n".join(errors))
+
+    return True
+
+
+def check_duplicate(task_data):
+    """Check if a task with the same name, fach, and stufe already exists."""
+    task = task_data['task']
+    existing_tasks = models.get_all_tasks()
+
+    for existing in existing_tasks:
+        if (existing['name'] == task['name'] and
+            existing['fach'] == task['fach'] and
+            existing['stufe'] == task['stufe']):
+            return existing['id']
+
+    return None
+
+
+def import_task(task_data, dry_run=False):
+    """Import a task into the database."""
+    task = task_data['task']
+
+    # Check for duplicates
+    existing_id = check_duplicate(task_data)
+    if existing_id:
+        print(f"Warning: Task '{task['name']}' ({task['fach']} {task['stufe']}) already exists (ID: {existing_id})")
+        return None
+
+    if dry_run:
+        print("\n[DRY RUN] Would import:")
+        print(f"  Task: {task['name']}")
+        print(f"  Fach: {task['fach']}, Stufe: {task['stufe']}")
+        print(f"  Kategorie: {task.get('kategorie', 'pflicht')}")
+        if task.get('lernziel'):
+            print(f"  Lernziel: {task['lernziel'][:50]}...")
+        if task.get('voraussetzungen'):
+            print(f"  Voraussetzungen: {', '.join(task['voraussetzungen'])}")
+        print(f"  Subtasks: {len(task.get('subtasks', []))}")
+        print(f"  Materials: {len(task.get('materials', []))}")
+        if task.get('quiz'):
+            print(f"  Quiz questions: {len(task['quiz'].get('questions', []))}")
+        return None
+
+    # Prepare quiz JSON
+    quiz_json = None
+    if task.get('quiz') and task['quiz'].get('questions'):
+        quiz_json = json.dumps(task['quiz'], ensure_ascii=False)
+
+    # Create task
+    task_id = models.create_task(
+        name=task['name'],
+        beschreibung=task['beschreibung'],
+        lernziel=task.get('lernziel', ''),
+        fach=task['fach'],
+        stufe=task['stufe'],
+        kategorie=task.get('kategorie', 'pflicht'),
+        quiz_json=quiz_json
+    )
+
+    # Handle prerequisites (by name lookup)
+    voraussetzungen = task.get('voraussetzungen', [])
+    if voraussetzungen:
+        all_tasks = models.get_all_tasks()
+        task_name_to_id = {t['name']: t['id'] for t in all_tasks}
+        for v_name in voraussetzungen:
+            if v_name in task_name_to_id:
+                models.add_task_voraussetzung(task_id, task_name_to_id[v_name])
+            else:
+                print(f"  Warning: Prerequisite '{v_name}' not found, skipping")
+
+    # Create subtasks
+    subtasks = task.get('subtasks', [])
+    for i, sub in enumerate(subtasks):
+        reihenfolge = sub.get('reihenfolge', i)
+        models.create_subtask(task_id, sub['beschreibung'], reihenfolge)
+
+    # Create materials
+    materials = task.get('materials', [])
+    for mat in materials:
+        models.create_material(
+            task_id,
+            mat['typ'],
+            mat['pfad'],
+            mat.get('beschreibung', '')
+        )
+
+    return task_id
+
+
+def import_batch(directory, dry_run=False):
+    """Import all task JSON files from a directory."""
+    dir_path = Path(directory)
+    if not dir_path.is_dir():
+        raise FileNotFoundError(f"Directory not found: {directory}")
+
+    json_files = sorted(dir_path.glob("*.json"))
+    # Exclude schema files
+    json_files = [f for f in json_files if not f.name.endswith('_schema.json')]
+
+    if not json_files:
+        print(f"No JSON files found in {directory}")
+        return []
+
+    print(f"Found {len(json_files)} task file(s) in {directory}\n")
+
+    results = {"imported": [], "skipped": [], "failed": []}
+
+    for filepath in json_files:
+        print(f"--- {filepath.name} ---")
+        try:
+            data = load_task_json(filepath)
+            validate_task_structure(data)
+            task_id = import_task(data, dry_run=dry_run)
+
+            if task_id:
+                results["imported"].append((filepath.name, task_id))
+                print(f"Imported: {data['task']['name']} (ID: {task_id})")
+            else:
+                results["skipped"].append(filepath.name)
+        except (ValidationError, FileNotFoundError) as e:
+            results["failed"].append((filepath.name, str(e)))
+            print(f"Failed: {e}")
+        print()
+
+    # Summary
+    print("\n=== BATCH IMPORT SUMMARY ===")
+    if dry_run:
+        print("[DRY RUN - no changes made]")
+    print(f"Imported: {len(results['imported'])}")
+    print(f"Skipped:  {len(results['skipped'])} (duplicates)")
+    print(f"Failed:   {len(results['failed'])}")
+
+    if results["failed"]:
+        print("\nFailed files:")
+        for name, error in results["failed"]:
+            print(f"  - {name}: {error[:60]}...")
+
+    return results
+
+
+def list_tasks():
+    """List all existing tasks."""
+    tasks = models.get_all_tasks()
+
+    if not tasks:
+        print("No tasks in database.")
+        return
+
+    print(f"\nExisting tasks ({len(tasks)}):\n")
+    print(f"{'ID':<4} {'Name':<40} {'Fach':<12} {'Stufe':<8} {'Kategorie':<10}")
+    print("-" * 80)
+
+    for t in tasks:
+        name = t['name'][:38] + '..' if len(t['name']) > 40 else t['name']
+        print(f"{t['id']:<4} {name:<40} {t['fach']:<12} {t['stufe']:<8} {t['kategorie']:<10}")
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        description='Import task definitions into Lernfortschritt database',
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog='''
+Examples:
+  python import_task.py task_definitions/task_01.json
+  python import_task.py --dry-run task_definitions/task_01.json
+  python import_task.py --batch task_definitions/
+  python import_task.py --batch task_definitions/ --dry-run
+  python import_task.py --list
+        '''
+    )
+    parser.add_argument('file', nargs='?', help='JSON file to import')
+    parser.add_argument('--dry-run', action='store_true',
+                        help='Validate and show what would be imported without making changes')
+    parser.add_argument('--batch', metavar='DIR',
+                        help='Import all JSON files from a directory')
+    parser.add_argument('--list', action='store_true',
+                        help='List all existing tasks in the database')
+
+    args = parser.parse_args()
+
+    # Initialize database if needed
+    models.init_db()
+
+    if args.list:
+        list_tasks()
+        return 0
+
+    if args.batch:
+        try:
+            results = import_batch(args.batch, dry_run=args.dry_run)
+            return 0 if not results["failed"] else 1
+        except FileNotFoundError as e:
+            print(f"Error: {e}", file=sys.stderr)
+            return 1
+
+    if not args.file:
+        parser.print_help()
+        return 1
+
+    try:
+        # Load JSON
+        print(f"Loading: {args.file}")
+        data = load_task_json(args.file)
+
+        # Validate
+        print("Validating structure...")
+        validate_task_structure(data)
+        print("Validation passed!")
+
+        # Import
+        task_id = import_task(data, dry_run=args.dry_run)
+
+        if task_id:
+            task = data['task']
+            print(f"\nSuccessfully imported task:")
+            print(f"  ID: {task_id}")
+            print(f"  Name: {task['name']}")
+            print(f"  Fach: {task['fach']}")
+            print(f"  Stufe: {task['stufe']}")
+            if task.get('voraussetzungen'):
+                print(f"  Voraussetzungen: {len(task['voraussetzungen'])}")
+            print(f"  Subtasks: {len(task.get('subtasks', []))}")
+            print(f"  Materials: {len(task.get('materials', []))}")
+            if task.get('quiz'):
+                print(f"  Quiz questions: {len(task['quiz'].get('questions', []))}")
+        elif not args.dry_run:
+            print("\nImport skipped (duplicate or error).")
+
+        return 0
+
+    except FileNotFoundError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        return 1
+    except ValidationError as e:
+        print(f"Validation error:\n{e}", file=sys.stderr)
+        return 1
+    except Exception as e:
+        print(f"Error: {e}", file=sys.stderr)
+        return 1
+
+
+if __name__ == '__main__':
+    sys.exit(main())

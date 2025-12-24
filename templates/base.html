@@ -16,6 +16,7 @@
                     <a href="{{ url_for('admin_dashboard') }}">Dashboard</a>
                     <a href="{{ url_for('admin_klassen') }}">Klassen</a>
                     <a href="{{ url_for('admin_aufgaben') }}">Aufgaben</a>
+                    <a href="{{ url_for('admin_wahlpflicht') }}">Wahlpflicht</a>
                     <span>👤 {{ session.admin_username }}</span>
                 {% elif session.student_id %}
                     <a href="{{ url_for('student_dashboard') }}">Meine Aufgaben</a>

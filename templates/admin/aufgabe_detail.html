@@ -56,15 +56,15 @@
                 <textarea name="beschreibung" class="form-control" rows="3">{{ task.beschreibung or '' }}</textarea>
             </div>
             <div class="form-group">
-                <label>Voraussetzung</label>
-                <select name="voraussetzung_id" class="form-control">
-                    <option value="">-- Keine --</option>
+                <label>Voraussetzungen</label>
+                <select name="voraussetzungen" class="form-control" multiple size="4">
                     {% for t in all_tasks %}
                     {% if t.id != task.id %}
-                    <option value="{{ t.id }}" {% if task.voraussetzung_id == t.id %}selected{% endif %}>{{ t.name }}</option>
+                    <option value="{{ t.id }}" {% if t.id in voraussetzungen|map(attribute='id')|list %}selected{% endif %}>{{ t.fach }} ({{ t.stufe }}): {{ t.name }}</option>
                     {% endif %}
                     {% endfor %}
                 </select>
+                <small class="text-muted">Strg/Cmd für Mehrfachauswahl</small>
             </div>
             <input type="hidden" name="quiz_json" value="{{ task.quiz_json or '' }}">
             <button type="submit" class="btn btn-primary">Speichern</button>
@@ -148,7 +148,9 @@
         <input type="hidden" name="kategorie" value="{{ task.kategorie }}">
         <input type="hidden" name="lernziel" value="{{ task.lernziel or '' }}">
         <input type="hidden" name="beschreibung" value="{{ task.beschreibung or '' }}">
-        <input type="hidden" name="voraussetzung_id" value="{{ task.voraussetzung_id or '' }}">
+        {% for v in voraussetzungen %}
+        <input type="hidden" name="voraussetzungen" value="{{ v.id }}">
+        {% endfor %}
 
         <div class="form-group">
             <label>Quiz JSON (für LLM-Generierung geeignet):</label>

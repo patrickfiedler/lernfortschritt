@@ -77,9 +77,16 @@ def init_db():
                 fach TEXT NOT NULL,
                 stufe TEXT NOT NULL,
                 kategorie TEXT NOT NULL DEFAULT 'pflicht',  -- pflicht/bonus
-                voraussetzung_id INTEGER,
-                quiz_json TEXT,  -- JSON format for quiz questions
-                FOREIGN KEY (voraussetzung_id) REFERENCES task(id) ON DELETE SET NULL
+                quiz_json TEXT  -- JSON format for quiz questions
+            );
+
+            -- Task prerequisites (many-to-many)
+            CREATE TABLE IF NOT EXISTS task_voraussetzung (
+                task_id INTEGER NOT NULL,
+                voraussetzung_task_id INTEGER NOT NULL,
+                PRIMARY KEY (task_id, voraussetzung_task_id),
+                FOREIGN KEY (task_id) REFERENCES task(id) ON DELETE CASCADE,
+                FOREIGN KEY (voraussetzung_task_id) REFERENCES task(id) ON DELETE CASCADE
             );
 
             -- Follow-up tasks (Folgeaufgaben)
@@ -89,6 +96,25 @@ def init_db():
                 PRIMARY KEY (task_id, folge_task_id),
                 FOREIGN KEY (task_id) REFERENCES task(id) ON DELETE CASCADE,
                 FOREIGN KEY (folge_task_id) REFERENCES task(id) ON DELETE CASCADE
+            );
+
+            -- Elective task groups (Wahlpflicht)
+            -- Students must complete ONE task from the group
+            CREATE TABLE IF NOT EXISTS wahlpflicht_gruppe (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL,
+                beschreibung TEXT,
+                fach TEXT NOT NULL,
+                stufe TEXT NOT NULL
+            );
+
+            -- Tasks belonging to an elective group
+            CREATE TABLE IF NOT EXISTS wahlpflicht_task (
+                gruppe_id INTEGER NOT NULL,
+                task_id INTEGER NOT NULL,
+                PRIMARY KEY (gruppe_id, task_id),
+                FOREIGN KEY (gruppe_id) REFERENCES wahlpflicht_gruppe(id) ON DELETE CASCADE,
+                FOREIGN KEY (task_id) REFERENCES task(id) ON DELETE CASCADE
             );
 
             -- Sub-tasks (Teilaufgaben)
@@ -401,10 +427,8 @@ def get_all_tasks():
     """Get all tasks."""
     with db_session() as conn:
         rows = conn.execute('''
-            SELECT t.*, p.name as voraussetzung_name
-            FROM task t
-            LEFT JOIN task p ON t.voraussetzung_id = p.id
-            ORDER BY t.fach, t.stufe, t.name
+            SELECT * FROM task
+            ORDER BY fach, stufe, name
         ''').fetchall()
         return [dict(r) for r in rows]
 
@@ -416,29 +440,175 @@ def get_task(task_id):
         return dict(row) if row else None
 
 
-def create_task(name, beschreibung, lernziel, fach, stufe, kategorie, voraussetzung_id=None, quiz_json=None):
+def create_task(name, beschreibung, lernziel, fach, stufe, kategorie, quiz_json=None):
     """Create a new task."""
     with db_session() as conn:
         cursor = conn.execute(
-            "INSERT INTO task (name, beschreibung, lernziel, fach, stufe, kategorie, voraussetzung_id, quiz_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-            (name, beschreibung, lernziel, fach, stufe, kategorie, voraussetzung_id, quiz_json)
+            "INSERT INTO task (name, beschreibung, lernziel, fach, stufe, kategorie, quiz_json) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (name, beschreibung, lernziel, fach, stufe, kategorie, quiz_json)
         )
         return cursor.lastrowid
 
 
-def update_task(task_id, name, beschreibung, lernziel, fach, stufe, kategorie, voraussetzung_id=None, quiz_json=None):
+def update_task(task_id, name, beschreibung, lernziel, fach, stufe, kategorie, quiz_json=None):
     """Update a task."""
     with db_session() as conn:
         conn.execute('''
             UPDATE task SET name=?, beschreibung=?, lernziel=?, fach=?, stufe=?,
-            kategorie=?, voraussetzung_id=?, quiz_json=? WHERE id=?
-        ''', (name, beschreibung, lernziel, fach, stufe, kategorie, voraussetzung_id, quiz_json, task_id))
+            kategorie=?, quiz_json=? WHERE id=?
+        ''', (name, beschreibung, lernziel, fach, stufe, kategorie, quiz_json, task_id))
 
 
 def delete_task(task_id):
     """Delete a task."""
     with db_session() as conn:
         conn.execute("DELETE FROM task WHERE id = ?", (task_id,))
+
+
+# ============ Task Prerequisites ============
+
+def get_task_voraussetzungen(task_id):
+    """Get all prerequisites for a task."""
+    with db_session() as conn:
+        rows = conn.execute('''
+            SELECT t.* FROM task t
+            JOIN task_voraussetzung tv ON t.id = tv.voraussetzung_task_id
+            WHERE tv.task_id = ?
+            ORDER BY t.name
+        ''', (task_id,)).fetchall()
+        return [dict(r) for r in rows]
+
+
+def add_task_voraussetzung(task_id, voraussetzung_task_id):
+    """Add a prerequisite to a task."""
+    with db_session() as conn:
+        conn.execute(
+            "INSERT OR IGNORE INTO task_voraussetzung (task_id, voraussetzung_task_id) VALUES (?, ?)",
+            (task_id, voraussetzung_task_id)
+        )
+
+
+def remove_task_voraussetzung(task_id, voraussetzung_task_id):
+    """Remove a prerequisite from a task."""
+    with db_session() as conn:
+        conn.execute(
+            "DELETE FROM task_voraussetzung WHERE task_id = ? AND voraussetzung_task_id = ?",
+            (task_id, voraussetzung_task_id)
+        )
+
+
+def set_task_voraussetzungen(task_id, voraussetzung_ids):
+    """Set all prerequisites for a task (replaces existing)."""
+    with db_session() as conn:
+        conn.execute("DELETE FROM task_voraussetzung WHERE task_id = ?", (task_id,))
+        for v_id in voraussetzung_ids:
+            conn.execute(
+                "INSERT INTO task_voraussetzung (task_id, voraussetzung_task_id) VALUES (?, ?)",
+                (task_id, v_id)
+            )
+
+
+def check_voraussetzungen_erfuellt(student_id, klasse_id, task_id):
+    """Check if student has completed all prerequisites for a task."""
+    with db_session() as conn:
+        # Get all prerequisites
+        voraussetzungen = conn.execute(
+            "SELECT voraussetzung_task_id FROM task_voraussetzung WHERE task_id = ?",
+            (task_id,)
+        ).fetchall()
+
+        if not voraussetzungen:
+            return True  # No prerequisites
+
+        for v in voraussetzungen:
+            # Check if student has completed this prerequisite
+            completed = conn.execute('''
+                SELECT abgeschlossen FROM student_task
+                WHERE student_id = ? AND klasse_id = ? AND task_id = ? AND abgeschlossen = 1
+            ''', (student_id, klasse_id, v['voraussetzung_task_id'])).fetchone()
+
+            if not completed:
+                return False
+
+        return True
+
+
+# ============ Wahlpflicht (Elective Groups) ============
+
+def create_wahlpflicht_gruppe(name, beschreibung, fach, stufe):
+    """Create an elective task group."""
+    with db_session() as conn:
+        cursor = conn.execute(
+            "INSERT INTO wahlpflicht_gruppe (name, beschreibung, fach, stufe) VALUES (?, ?, ?, ?)",
+            (name, beschreibung, fach, stufe)
+        )
+        return cursor.lastrowid
+
+
+def get_wahlpflicht_gruppe(gruppe_id):
+    """Get an elective group by ID."""
+    with db_session() as conn:
+        row = conn.execute(
+            "SELECT * FROM wahlpflicht_gruppe WHERE id = ?", (gruppe_id,)
+        ).fetchone()
+        return dict(row) if row else None
+
+
+def get_all_wahlpflicht_gruppen():
+    """Get all elective groups."""
+    with db_session() as conn:
+        rows = conn.execute(
+            "SELECT * FROM wahlpflicht_gruppe ORDER BY fach, stufe, name"
+        ).fetchall()
+        return [dict(r) for r in rows]
+
+
+def delete_wahlpflicht_gruppe(gruppe_id):
+    """Delete an elective group."""
+    with db_session() as conn:
+        conn.execute("DELETE FROM wahlpflicht_gruppe WHERE id = ?", (gruppe_id,))
+
+
+def add_task_to_wahlpflicht(gruppe_id, task_id):
+    """Add a task to an elective group."""
+    with db_session() as conn:
+        conn.execute(
+            "INSERT OR IGNORE INTO wahlpflicht_task (gruppe_id, task_id) VALUES (?, ?)",
+            (gruppe_id, task_id)
+        )
+
+
+def remove_task_from_wahlpflicht(gruppe_id, task_id):
+    """Remove a task from an elective group."""
+    with db_session() as conn:
+        conn.execute(
+            "DELETE FROM wahlpflicht_task WHERE gruppe_id = ? AND task_id = ?",
+            (gruppe_id, task_id)
+        )
+
+
+def get_wahlpflicht_tasks(gruppe_id):
+    """Get all tasks in an elective group."""
+    with db_session() as conn:
+        rows = conn.execute('''
+            SELECT t.* FROM task t
+            JOIN wahlpflicht_task wt ON t.id = wt.task_id
+            WHERE wt.gruppe_id = ?
+            ORDER BY t.name
+        ''', (gruppe_id,)).fetchall()
+        return [dict(r) for r in rows]
+
+
+def check_wahlpflicht_erfuellt(student_id, klasse_id, gruppe_id):
+    """Check if student has completed any task from an elective group."""
+    with db_session() as conn:
+        completed = conn.execute('''
+            SELECT st.id FROM student_task st
+            JOIN wahlpflicht_task wt ON st.task_id = wt.task_id
+            WHERE st.student_id = ? AND st.klasse_id = ? AND wt.gruppe_id = ? AND st.abgeschlossen = 1
+            LIMIT 1
+        ''', (student_id, klasse_id, gruppe_id)).fetchone()
+        return completed is not None
 
 
 # ============ Subtask functions ============

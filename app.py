@@ -232,7 +232,11 @@ def admin_schueler_aufgabe_abschliessen(student_id, klasse_id):
 @admin_required
 def admin_aufgaben():
     tasks = models.get_all_tasks()
-    return render_template('admin/aufgaben.html', tasks=tasks, subjects=config.SUBJECTS, levels=config.LEVELS)
+    # Get prerequisites for each task
+    task_voraussetzungen = {}
+    for task in tasks:
+        task_voraussetzungen[task['id']] = models.get_task_voraussetzungen(task['id'])
+    return render_template('admin/aufgaben.html', tasks=tasks, task_voraussetzungen=task_voraussetzungen, subjects=config.SUBJECTS, levels=config.LEVELS)
 
 
 @app.route('/admin/aufgabe/neu', methods=['GET', 'POST'])
@@ -245,14 +249,17 @@ def admin_aufgabe_neu():
             lernziel=request.form['lernziel'],
             fach=request.form['fach'],
             stufe=request.form['stufe'],
-            kategorie=request.form['kategorie'],
-            voraussetzung_id=request.form.get('voraussetzung_id') or None
+            kategorie=request.form['kategorie']
         )
+        # Handle multiple prerequisites
+        voraussetzung_ids = request.form.getlist('voraussetzungen')
+        if voraussetzung_ids:
+            models.set_task_voraussetzungen(task_id, [int(v) for v in voraussetzung_ids if v])
         flash(f'Aufgabe erstellt. ✅', 'success')
         return redirect(url_for('admin_aufgabe_detail', task_id=task_id))
 
     tasks = models.get_all_tasks()
-    return render_template('admin/aufgabe_form.html', task=None, tasks=tasks, subjects=config.SUBJECTS, levels=config.LEVELS)
+    return render_template('admin/aufgabe_form.html', task=None, tasks=tasks, voraussetzungen=[], subjects=config.SUBJECTS, levels=config.LEVELS)
 
 
 @app.route('/admin/aufgabe/<int:task_id>')
@@ -265,7 +272,8 @@ def admin_aufgabe_detail(task_id):
     subtasks = models.get_subtasks(task_id)
     materials = models.get_materials(task_id)
     all_tasks = models.get_all_tasks()
-    return render_template('admin/aufgabe_detail.html', task=task, subtasks=subtasks, materials=materials, all_tasks=all_tasks, subjects=config.SUBJECTS, levels=config.LEVELS)
+    voraussetzungen = models.get_task_voraussetzungen(task_id)
+    return render_template('admin/aufgabe_detail.html', task=task, subtasks=subtasks, materials=materials, all_tasks=all_tasks, voraussetzungen=voraussetzungen, subjects=config.SUBJECTS, levels=config.LEVELS)
 
 
 @app.route('/admin/aufgabe/<int:task_id>/bearbeiten', methods=['POST'])
@@ -279,9 +287,11 @@ def admin_aufgabe_bearbeiten(task_id):
         fach=request.form['fach'],
         stufe=request.form['stufe'],
         kategorie=request.form['kategorie'],
-        voraussetzung_id=request.form.get('voraussetzung_id') or None,
         quiz_json=request.form.get('quiz_json') or None
     )
+    # Handle multiple prerequisites
+    voraussetzung_ids = request.form.getlist('voraussetzungen')
+    models.set_task_voraussetzungen(task_id, [int(v) for v in voraussetzung_ids if v])
     flash('Aufgabe aktualisiert. ✅', 'success')
     return redirect(url_for('admin_aufgabe_detail', task_id=task_id))
 
@@ -349,6 +359,59 @@ def admin_material_loeschen(material_id):
     models.delete_material(material_id)
     flash('Material gelöscht.', 'success')
     return redirect(request.referrer or url_for('admin_aufgaben'))
+
+
+# ============ Admin: Wahlpflicht (Elective Groups) ============
+
+@app.route('/admin/wahlpflicht')
+@admin_required
+def admin_wahlpflicht():
+    gruppen = models.get_all_wahlpflicht_gruppen()
+    tasks = models.get_all_tasks()
+    # Get tasks for each group
+    gruppen_tasks = {}
+    for gruppe in gruppen:
+        gruppen_tasks[gruppe['id']] = models.get_wahlpflicht_tasks(gruppe['id'])
+    return render_template('admin/wahlpflicht.html', gruppen=gruppen, gruppen_tasks=gruppen_tasks, tasks=tasks, subjects=config.SUBJECTS, levels=config.LEVELS)
+
+
+@app.route('/admin/wahlpflicht/neu', methods=['POST'])
+@admin_required
+def admin_wahlpflicht_neu():
+    gruppe_id = models.create_wahlpflicht_gruppe(
+        name=request.form['name'],
+        beschreibung=request.form.get('beschreibung', ''),
+        fach=request.form['fach'],
+        stufe=request.form['stufe']
+    )
+    flash('Wahlpflichtgruppe erstellt. ✅', 'success')
+    return redirect(url_for('admin_wahlpflicht'))
+
+
+@app.route('/admin/wahlpflicht/<int:gruppe_id>/aufgabe-hinzufuegen', methods=['POST'])
+@admin_required
+def admin_wahlpflicht_aufgabe_hinzufuegen(gruppe_id):
+    task_id = request.form.get('task_id')
+    if task_id:
+        models.add_task_to_wahlpflicht(gruppe_id, int(task_id))
+        flash('Aufgabe zur Gruppe hinzugefügt. ✅', 'success')
+    return redirect(url_for('admin_wahlpflicht'))
+
+
+@app.route('/admin/wahlpflicht/<int:gruppe_id>/aufgabe/<int:task_id>/entfernen', methods=['POST'])
+@admin_required
+def admin_wahlpflicht_aufgabe_entfernen(gruppe_id, task_id):
+    models.remove_task_from_wahlpflicht(gruppe_id, task_id)
+    flash('Aufgabe aus Gruppe entfernt.', 'success')
+    return redirect(url_for('admin_wahlpflicht'))
+
+
+@app.route('/admin/wahlpflicht/<int:gruppe_id>/loeschen', methods=['POST'])
+@admin_required
+def admin_wahlpflicht_loeschen(gruppe_id):
+    models.delete_wahlpflicht_gruppe(gruppe_id)
+    flash('Wahlpflichtgruppe gelöscht.', 'success')
+    return redirect(url_for('admin_wahlpflicht'))
 
 
 # ============ Admin: Unterricht (Lessons) ============
