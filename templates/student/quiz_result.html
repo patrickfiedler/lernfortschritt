@@ -22,16 +22,9 @@
         {% set q_idx = loop.index0|string %}
         {% set user_answers = antworten.get(q_idx, []) %}
         {% for answer in question.answers %}
-        {% set is_correct = loop.index0 in question.correct %}
         {% set was_selected = loop.index0 in user_answers %}
-        <div class="quiz-option {% if is_correct %}correct{% elif was_selected %}incorrect{% endif %}">
-            {% if was_selected %}
-                {% if is_correct %}✅{% else %}❌{% endif %}
-            {% elif is_correct %}
-                ✓
-            {% else %}
-                ○
-            {% endif %}
+        <div class="quiz-option {% if was_selected %}selected{% endif %}">
+            {% if was_selected %}●{% else %}○{% endif %}
             <span>{{ answer }}</span>
         </div>
         {% endfor %}

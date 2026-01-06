@@ -522,6 +522,12 @@ select.form-control {
     border-color: #ef4444;
 }
 
+.quiz-option.selected {
+    background: #e0f2fe;
+    border-color: #0284c7;
+    font-weight: 500;
+}
+
 /* Login Page */
 .login-container {
     min-height: 100vh;
