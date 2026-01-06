@@ -327,6 +327,112 @@ select.form-control {
     color: var(--gray-500);
 }
 
+/* Enhanced Subtask Cards */
+.subtask-list-enhanced {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.subtask-card {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem;
+    background: var(--gray-50);
+    border-radius: 0.5rem;
+    border: 1px solid var(--gray-200);
+    transition: all 0.2s ease;
+}
+
+.subtask-card:hover {
+    border-color: var(--primary);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.subtask-card.completed {
+    background: linear-gradient(to right, #ecfdf5, var(--gray-50));
+    border-color: var(--success);
+}
+
+.subtask-number {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    height: 2rem;
+    background: var(--primary);
+    color: white;
+    border-radius: 50%;
+    font-weight: 600;
+    font-size: 0.875rem;
+    flex-shrink: 0;
+}
+
+.subtask-card.completed .subtask-number {
+    background: var(--success);
+}
+
+.subtask-content {
+    flex: 1;
+    min-width: 0;
+}
+
+.subtask-card.completed .subtask-text {
+    text-decoration: line-through;
+    color: var(--gray-500);
+}
+
+.subtask-toggle {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+.subtask-toggle input {
+    position: absolute;
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.subtask-checkmark {
+    width: 1.5rem;
+    height: 1.5rem;
+    border: 2px solid var(--gray-300);
+    border-radius: 0.375rem;
+    background: white;
+    transition: all 0.2s ease;
+}
+
+.subtask-toggle:hover .subtask-checkmark {
+    border-color: var(--primary);
+}
+
+.subtask-toggle input:checked + .subtask-checkmark {
+    background: var(--success);
+    border-color: var(--success);
+}
+
+.subtask-toggle input:checked + .subtask-checkmark::after {
+    content: '✓';
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 1rem;
+    font-weight: bold;
+    height: 100%;
+}
+
+.subtask-toggle input:disabled + .subtask-checkmark {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
 /* Rating Stars/Points */
 .rating-group {
     display: flex;

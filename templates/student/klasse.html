@@ -9,68 +9,73 @@
 </div>
 
 {% if task %}
-<div class="grid grid-2">
-    <!-- Task Info -->
-    <div class="card task-card {% if task.abgeschlossen %}complete{% elif task.kategorie == 'bonus' %}bonus{% endif %}">
-        <div class="card-header flex flex-between">
-            <span>📝 Aktuelle Aufgabe</span>
-            {% if task.abgeschlossen %}
-            <span class="badge badge-success">✅ Abgeschlossen</span>
-            {% endif %}
-        </div>
-
-        <h2>{{ task.name }}</h2>
-        {% if task.kategorie == 'bonus' %}
-        <span class="badge badge-warning mb-1">⭐ Bonusaufgabe</span>
-        {% endif %}
-
-        <p class="text-muted">{{ task.fach }} · {{ task.stufe }}</p>
-
-        {% if task.lernziel %}
-        <div class="mt-1 mb-1" style="background: #f0f9ff; padding: 0.75rem; border-radius: 0.375rem; border-left: 3px solid #0284c7;">
-            <strong>🎯 Lernziel:</strong><br>
-            {{ task.lernziel }}
-        </div>
-        {% endif %}
-
-        {% if task.beschreibung %}
-        <div class="mt-1">
-            <strong>📋 Beschreibung:</strong><br>
-            {{ task.beschreibung }}
-        </div>
+<!-- Task Info -->
+<div class="card task-card {% if task.abgeschlossen %}complete{% elif task.kategorie == 'bonus' %}bonus{% endif %}">
+    <div class="card-header flex flex-between">
+        <span>📝 Aktuelle Aufgabe</span>
+        {% if task.abgeschlossen %}
+        <span class="badge badge-success">✅ Abgeschlossen</span>
         {% endif %}
     </div>
 
-    <!-- Subtasks -->
-    <div class="card">
-        <div class="card-header">✅ Teilaufgaben</div>
+    <h2>{{ task.name }}</h2>
+    {% if task.kategorie == 'bonus' %}
+    <span class="badge badge-warning mb-1">⭐ Bonusaufgabe</span>
+    {% endif %}
+
+    <p class="text-muted">{{ task.fach }} · {{ task.stufe }}</p>
+
+    {% if task.lernziel %}
+    <div class="mt-1 mb-1" style="background: #f0f9ff; padding: 0.75rem; border-radius: 0.375rem; border-left: 3px solid #0284c7;">
+        <strong>🎯 Lernziel:</strong><br>
+        {{ task.lernziel }}
+    </div>
+    {% endif %}
+
+    {% if task.beschreibung %}
+    <div class="mt-1">
+        <strong>📋 Beschreibung:</strong><br>
+        {{ task.beschreibung }}
+    </div>
+    {% endif %}
+</div>
+
+<!-- Subtasks -->
+<div class="card mt-2">
+    <div class="card-header flex flex-between">
+        <span>✅ Teilaufgaben</span>
         {% if subtasks %}
-        <ul class="subtask-list">
-            {% for sub in subtasks %}
-            <li class="subtask-item {% if sub.erledigt %}completed{% endif %}" data-subtask-id="{{ sub.id }}">
+        <span id="progress-text" class="text-muted">{{ subtasks|selectattr('erledigt')|list|length }}/{{ subtasks|length }}</span>
+        {% endif %}
+    </div>
+    {% if subtasks %}
+    <div class="subtask-list-enhanced">
+        {% for sub in subtasks %}
+        <div class="subtask-card {% if sub.erledigt %}completed{% endif %}" data-subtask-id="{{ sub.id }}">
+            <div class="subtask-number">{{ loop.index }}</div>
+            <div class="subtask-content">
+                <span class="subtask-text">{{ sub.beschreibung }}</span>
+            </div>
+            <label class="subtask-toggle">
                 <input type="checkbox" class="subtask-checkbox"
                        {% if sub.erledigt %}checked{% endif %}
                        {% if task.abgeschlossen %}disabled{% endif %}
                        onchange="toggleSubtask({{ task.id }}, {{ sub.id }}, this.checked)">
-                <span class="subtask-text">{{ sub.beschreibung }}</span>
-            </li>
-            {% endfor %}
-        </ul>
-
-        <div class="mt-1">
-            <div class="flex flex-between mb-1">
-                <span>Fortschritt</span>
-                <span id="progress-text">{{ subtasks|selectattr('erledigt')|list|length }}/{{ subtasks|length }}</span>
-            </div>
-            <div class="progress-container">
-                <div class="progress-bar" id="progress-bar"
-                     style="width: {{ (subtasks|selectattr('erledigt')|list|length / subtasks|length * 100) if subtasks|length > 0 else 0 }}%;"></div>
-            </div>
+                <span class="subtask-checkmark"></span>
+            </label>
         </div>
-        {% else %}
-        <p class="text-muted">Keine Teilaufgaben definiert.</p>
-        {% endif %}
+        {% endfor %}
     </div>
+
+    <div class="mt-1">
+        <div class="progress-container">
+            <div class="progress-bar" id="progress-bar"
+                 style="width: {{ (subtasks|selectattr('erledigt')|list|length / subtasks|length * 100) if subtasks|length > 0 else 0 }}%;"></div>
+        </div>
+    </div>
+    {% else %}
+    <p class="text-muted">Keine Teilaufgaben definiert.</p>
+    {% endif %}
 </div>
 
 <!-- Materials -->
@@ -217,8 +222,8 @@ function toggleSubtask(studentTaskId, subtaskId, checked) {
         }
 
         // Update progress
-        const completed = document.querySelectorAll('.subtask-item.completed').length;
-        const total = document.querySelectorAll('.subtask-item').length;
+        const completed = document.querySelectorAll('.subtask-card.completed').length;
+        const total = document.querySelectorAll('.subtask-card').length;
         document.getElementById('progress-text').textContent = `${completed}/${total}`;
         document.getElementById('progress-bar').style.width = `${completed/total*100}%`;
 
