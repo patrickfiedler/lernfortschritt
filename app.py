@@ -149,7 +149,7 @@ def admin_klasse_schueler_hinzufuegen(klasse_id):
             nachname = parts[0].strip()
             vorname = parts[1].strip()
 
-            username = generate_username(existing_usernames)
+            username = generate_username(existing_usernames, vorname, nachname)
             existing_usernames.add(username)
             password = generate_password()
 
