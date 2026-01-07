@@ -51,6 +51,13 @@ Student-class is many-to-many. Each student has one active task per class. Tasks
 4. Students complete subtasks and take quizzes (80% to pass)
 5. Task auto-completes when all subtasks done + quiz passed (or admin manual override)
 
+## Git Workflow
+
+- **develop**: Active development branch - always work here
+- **main**: Production-ready code only - do not commit directly
+- Merge `develop` → `main` only when ready for deployment
+- Deploy with `./deploy/deploy.sh` after pushing to main
+
 ## Conventions
 
 - German terminology in code: Klasse (class), Schüler (student), Aufgabe (task), Teilaufgabe (subtask)
