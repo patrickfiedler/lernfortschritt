@@ -350,6 +350,15 @@ def verify_admin(username, password):
         return dict(admin)
 
 
+def update_admin_password(admin_id, new_password):
+    """Update an admin's password."""
+    with db_session() as conn:
+        conn.execute(
+            "UPDATE admin SET password_hash = ? WHERE id = ?",
+            (hash_password(new_password), admin_id)
+        )
+
+
 def verify_student(username, password):
     """Verify student credentials."""
     with db_session() as conn:

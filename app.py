@@ -501,6 +501,39 @@ def admin_wahlpflicht_loeschen(gruppe_id):
     return redirect(url_for('admin_wahlpflicht'))
 
 
+# ============ Admin: Password Change ============
+
+@app.route('/admin/passwort', methods=['GET', 'POST'])
+@admin_required
+def admin_passwort():
+    if request.method == 'POST':
+        current_password = request.form.get('current_password', '')
+        new_password = request.form.get('new_password', '')
+        confirm_password = request.form.get('confirm_password', '')
+
+        # Verify current password
+        admin = models.verify_admin(session['admin_username'], current_password)
+        if not admin:
+            flash('Aktuelles Passwort ist falsch.', 'danger')
+            return redirect(url_for('admin_passwort'))
+
+        # Validate new password
+        if len(new_password) < 6:
+            flash('Das neue Passwort muss mindestens 6 Zeichen lang sein.', 'danger')
+            return redirect(url_for('admin_passwort'))
+
+        if new_password != confirm_password:
+            flash('Die neuen Passwörter stimmen nicht überein.', 'danger')
+            return redirect(url_for('admin_passwort'))
+
+        # Update password
+        models.update_admin_password(session['admin_id'], new_password)
+        flash('Passwort erfolgreich geändert.', 'success')
+        return redirect(url_for('admin_dashboard'))
+
+    return render_template('admin/passwort.html')
+
+
 # ============ Admin: Unterricht (Lessons) ============
 
 @app.route('/admin/klasse/<int:klasse_id>/unterricht')
