@@ -10,6 +10,7 @@ WorkingDirectory=/opt/lernmanager
 
 # Generate a secure key: python3 -c "import secrets; print(secrets.token_hex(32))"
 Environment="SECRET_KEY=CHANGE_ME_TO_RANDOM_STRING"
+Environment="FLASK_ENV=production"
 
 ExecStart=/opt/lernmanager/venv/bin/python run.py
 Restart=always
@@ -19,7 +20,7 @@ RestartSec=5
 NoNewPrivileges=true
 ProtectSystem=strict
 ProtectHome=true
-ReadWritePaths=/opt/lernmanager/data /opt/lernmanager/static/uploads
+ReadWritePaths=/opt/lernmanager/data /opt/lernmanager/instance/uploads
 
 [Install]
 WantedBy=multi-user.target

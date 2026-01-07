@@ -13,6 +13,7 @@
 <div class="card mb-2">
     <div class="card-header">+ Neue Wahlpflichtgruppe</div>
     <form method="POST" action="{{ url_for('admin_wahlpflicht_neu') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <div class="grid grid-2">
             <div class="form-group">
                 <label for="name">Name</label>
@@ -54,6 +55,7 @@
             <span class="badge badge-secondary">{{ gruppe.stufe }}</span>
         </div>
         <form method="POST" action="{{ url_for('admin_wahlpflicht_loeschen', gruppe_id=gruppe.id) }}" onsubmit="return confirm('Gruppe wirklich löschen?');">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <button type="submit" class="btn btn-sm btn-danger">🗑️ Löschen</button>
         </form>
     </div>
@@ -74,6 +76,7 @@
                     <small class="text-muted">({{ task.fach }} {{ task.stufe }})</small>
                 </span>
                 <form method="POST" action="{{ url_for('admin_wahlpflicht_aufgabe_entfernen', gruppe_id=gruppe.id, task_id=task.id) }}" style="display: inline;">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <button type="submit" class="btn btn-sm btn-secondary">Entfernen</button>
                 </form>
             </li>
@@ -86,6 +89,7 @@
 
     <!-- Add task to group -->
     <form method="POST" action="{{ url_for('admin_wahlpflicht_aufgabe_hinzufuegen', gruppe_id=gruppe.id) }}" class="flex gap-1">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <select name="task_id" class="form-control" required>
             <option value="">-- Aufgabe auswählen --</option>
             {% for task in tasks %}

@@ -5,7 +5,7 @@ services:
       - "8080:8080"
     volumes:
       - ./data:/app/data
-      - ./static/uploads:/app/static/uploads
+      - ./instance/uploads:/app/instance/uploads
     environment:
       - SECRET_KEY=${SECRET_KEY:-change-this-in-production}
     restart: unless-stopped

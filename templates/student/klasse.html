@@ -90,7 +90,7 @@
             <a href="{{ mat.pfad }}" target="_blank">{{ mat.beschreibung or mat.pfad }}</a>
             {% else %}
             <span class="material-icon">📄</span>
-            <a href="{{ url_for('static', filename='uploads/' + mat.pfad) }}" target="_blank">{{ mat.beschreibung or mat.pfad }}</a>
+            <a href="{{ url_for('download_material', material_id=mat.id) }}" target="_blank">{{ mat.beschreibung or mat.pfad }}</a>
             {% endif %}
         </li>
         {% endfor %}
@@ -176,6 +176,7 @@
     <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 2rem; border-radius: 0.5rem; max-width: 400px; width: 90%;">
         <h3 class="mb-2">📊 Selbstbewertung</h3>
         <form id="eval-form" method="POST">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <div class="form-group">
                 <label><strong>Selbstständigkeit</strong></label>
                 <p class="text-muted">Wie gut hast du selbstständig gearbeitet?</p>
@@ -208,9 +209,13 @@
 
 {% block scripts %}
 function toggleSubtask(studentTaskId, subtaskId, checked) {
+    const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
     fetch(`/schueler/aufgabe/${studentTaskId}/teilaufgabe/${subtaskId}`, {
         method: 'POST',
-        headers: {'Content-Type': 'application/json'},
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken
+        },
         body: JSON.stringify({erledigt: checked})
     }).then(r => r.json()).then(data => {
         // Update UI

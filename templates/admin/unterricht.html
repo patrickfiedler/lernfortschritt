@@ -93,6 +93,7 @@ const unterrichtId = {{ unterricht_id }};
 
 function saveStudent(studentId) {
     const row = document.querySelector(`tr[data-student-id="${studentId}"]`);
+    const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
     const data = new FormData();
     data.append('student_id', studentId);
     data.append('anwesend', row.querySelector('.attendance-toggle').classList.contains('active') ? '1' : '');
@@ -110,6 +111,7 @@ function saveStudent(studentId) {
 
     fetch(`/admin/unterricht/${unterrichtId}/bewertung`, {
         method: 'POST',
+        headers: {'X-CSRFToken': csrfToken},
         body: data
     });
 }

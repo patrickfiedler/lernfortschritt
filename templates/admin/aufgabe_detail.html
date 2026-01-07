@@ -12,6 +12,7 @@
         <span class="badge badge-primary">Pflicht</span>
         {% endif %}
         <form method="POST" action="{{ url_for('admin_aufgabe_loeschen', task_id=task.id) }}" onsubmit="return confirm('Aufgabe wirklich löschen?');">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <button type="submit" class="btn btn-danger">🗑️ Löschen</button>
         </form>
     </div>
@@ -21,6 +22,7 @@
 <div class="card">
     <div class="card-header">ℹ️ Grunddaten</div>
     <form method="POST" action="{{ url_for('admin_aufgabe_bearbeiten', task_id=task.id) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <div class="grid grid-2">
             <div class="form-group">
                 <label>Name</label>
@@ -80,6 +82,7 @@
 <div class="card mt-2">
     <div class="card-header">✅ Teilaufgaben <small class="text-muted">(Markdown)</small></div>
     <form method="POST" action="{{ url_for('admin_aufgabe_teilaufgaben', task_id=task.id) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <div id="subtask-list">
             {% for st in subtasks %}
             <div class="subtask-edit-item" data-index="{{ loop.index0 }}">
@@ -115,10 +118,11 @@
                 <a href="{{ mat.pfad }}" target="_blank">{{ mat.beschreibung or mat.pfad }}</a>
                 {% else %}
                 <span class="material-icon">📄</span>
-                <a href="{{ url_for('static', filename='uploads/' + mat.pfad) }}" target="_blank">{{ mat.beschreibung or mat.pfad }}</a>
+                <a href="{{ url_for('download_material', material_id=mat.id) }}" target="_blank">{{ mat.beschreibung or mat.pfad }}</a>
                 {% endif %}
             </div>
             <form method="POST" action="{{ url_for('admin_material_loeschen', material_id=mat.id) }}" style="display: inline;">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <button type="submit" class="btn btn-sm btn-danger">🗑️</button>
             </form>
         </li>
@@ -130,6 +134,7 @@
         <div>
             <h4 class="mb-1">🔗 Link hinzufügen</h4>
             <form method="POST" action="{{ url_for('admin_aufgabe_material_link', task_id=task.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <div class="form-group">
                     <input type="url" name="url" class="form-control" placeholder="https://..." required>
                 </div>
@@ -142,6 +147,7 @@
         <div>
             <h4 class="mb-1">📤 Datei hochladen</h4>
             <form method="POST" action="{{ url_for('admin_aufgabe_material_upload', task_id=task.id) }}" enctype="multipart/form-data">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <div class="form-group">
                     <input type="file" name="file" class="form-control" accept=".pdf,.png,.jpg,.jpeg,.gif" required>
                 </div>
@@ -158,6 +164,7 @@
 <div class="card mt-2">
     <div class="card-header">❓ Quiz</div>
     <form method="POST" action="{{ url_for('admin_aufgabe_bearbeiten', task_id=task.id) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <input type="hidden" name="name" value="{{ task.name }}">
         <input type="hidden" name="fach" value="{{ task.fach }}">
         <input type="hidden" name="stufe" value="{{ task.stufe }}">

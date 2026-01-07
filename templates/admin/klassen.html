@@ -10,6 +10,7 @@
 <div class="card mb-2">
     <div class="card-header">➕ Neue Klasse</div>
     <form method="POST" action="{{ url_for('admin_klasse_neu') }}" class="flex gap-1">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <input type="text" name="name" class="form-control" placeholder="Klassenname" required style="flex: 1;">
         <button type="submit" class="btn btn-primary">Erstellen</button>
     </form>

@@ -2,12 +2,35 @@ import sqlite3
 import json
 from hashlib import sha256
 from contextlib import contextmanager
+from werkzeug.security import generate_password_hash, check_password_hash
 import config
 
 
 def hash_password(password):
-    """Simple password hashing."""
+    """Hash password using werkzeug (bcrypt-based)."""
+    return generate_password_hash(password)
+
+
+def _legacy_hash(password):
+    """Legacy SHA256 hash for migration."""
     return sha256(password.encode()).hexdigest()
+
+
+def verify_password(stored_hash, password):
+    """Verify password against stored hash.
+
+    Supports both new bcrypt hashes and legacy SHA256 hashes.
+    Returns (is_valid, needs_rehash).
+    """
+    # Try werkzeug hash first (starts with 'scrypt:' or 'pbkdf2:')
+    if stored_hash.startswith(('scrypt:', 'pbkdf2:')):
+        return check_password_hash(stored_hash, password), False
+
+    # Try legacy SHA256 hash
+    if stored_hash == _legacy_hash(password):
+        return True, True  # Valid but needs rehash
+
+    return False, False
 
 
 def get_db():
@@ -288,20 +311,48 @@ def verify_admin(username, password):
     """Verify admin credentials."""
     with db_session() as conn:
         admin = conn.execute(
-            "SELECT * FROM admin WHERE username = ? AND password_hash = ?",
-            (username, hash_password(password))
+            "SELECT * FROM admin WHERE username = ?",
+            (username,)
         ).fetchone()
-        return dict(admin) if admin else None
+        if not admin:
+            return None
+
+        is_valid, needs_rehash = verify_password(admin['password_hash'], password)
+        if not is_valid:
+            return None
+
+        # Upgrade legacy hash to modern hash on successful login
+        if needs_rehash:
+            conn.execute(
+                "UPDATE admin SET password_hash = ? WHERE id = ?",
+                (hash_password(password), admin['id'])
+            )
+
+        return dict(admin)
 
 
 def verify_student(username, password):
     """Verify student credentials."""
     with db_session() as conn:
         student = conn.execute(
-            "SELECT * FROM student WHERE username = ? AND password_hash = ?",
-            (username, hash_password(password))
+            "SELECT * FROM student WHERE username = ?",
+            (username,)
         ).fetchone()
-        return dict(student) if student else None
+        if not student:
+            return None
+
+        is_valid, needs_rehash = verify_password(student['password_hash'], password)
+        if not is_valid:
+            return None
+
+        # Upgrade legacy hash to modern hash on successful login
+        if needs_rehash:
+            conn.execute(
+                "UPDATE student SET password_hash = ? WHERE id = ?",
+                (hash_password(password), student['id'])
+            )
+
+        return dict(student)
 
 
 # ============ Class functions ============
@@ -419,6 +470,26 @@ def get_student_klassen(student_id):
             ORDER BY k.name
         ''', (student_id,)).fetchall()
         return [dict(r) for r in rows]
+
+
+def is_student_in_klasse(student_id, klasse_id):
+    """Check if a student is in a specific class."""
+    with db_session() as conn:
+        row = conn.execute('''
+            SELECT 1 FROM student_klasse
+            WHERE student_id = ? AND klasse_id = ?
+        ''', (student_id, klasse_id)).fetchone()
+        return row is not None
+
+
+def is_student_task_owner(student_id, student_task_id):
+    """Check if a student_task belongs to the given student."""
+    with db_session() as conn:
+        row = conn.execute('''
+            SELECT 1 FROM student_task
+            WHERE id = ? AND student_id = ?
+        ''', (student_task_id, student_id)).fetchone()
+        return row is not None
 
 
 # ============ Task functions ============
@@ -661,6 +732,16 @@ def get_materials(task_id):
             (task_id,)
         ).fetchall()
         return [dict(r) for r in rows]
+
+
+def get_material(material_id):
+    """Get a single material by ID."""
+    with db_session() as conn:
+        row = conn.execute(
+            "SELECT * FROM material WHERE id = ?",
+            (material_id,)
+        ).fetchone()
+        return dict(row) if row else None
 
 
 def create_material(task_id, typ, pfad, beschreibung=''):

@@ -8,6 +8,7 @@
     <div class="flex gap-1">
         <a href="{{ url_for('admin_unterricht', klasse_id=klasse.id) }}" class="btn btn-primary">📅 Unterricht</a>
         <form method="POST" action="{{ url_for('admin_klasse_loeschen', klasse_id=klasse.id) }}" style="display: inline;" onsubmit="return confirm('Klasse wirklich löschen?');">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <button type="submit" class="btn btn-danger">🗑️ Löschen</button>
         </form>
     </div>
@@ -17,6 +18,7 @@
 <div class="card mb-2">
     <div class="card-header">👥 Schüler hinzufügen (Batch)</div>
     <form method="POST" action="{{ url_for('admin_klasse_schueler_hinzufuegen', klasse_id=klasse.id) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <div class="form-group">
             <label>Ein Schüler pro Zeile: <code>Nachname, Vorname</code></label>
             <textarea name="batch_input" class="form-control" rows="5" placeholder="Müller, Max&#10;Schmidt, Anna&#10;Weber, Tim"></textarea>
@@ -29,6 +31,7 @@
 <div class="card mb-2">
     <div class="card-header">📝 Aufgabe für alle zuweisen</div>
     <form method="POST" action="{{ url_for('admin_klasse_aufgabe_zuweisen', klasse_id=klasse.id) }}" class="flex gap-1">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <select name="task_id" class="form-control" style="flex: 1;" required>
             <option value="">-- Aufgabe wählen --</option>
             {% for task in tasks %}

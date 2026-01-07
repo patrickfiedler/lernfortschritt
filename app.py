@@ -2,7 +2,8 @@ import os
 import json
 from functools import wraps
 from datetime import date
-from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
+from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify, send_from_directory, abort
+from flask_wtf.csrf import CSRFProtect
 from werkzeug.utils import secure_filename
 from markupsafe import Markup
 import markdown as md
@@ -10,10 +11,21 @@ import markdown as md
 import config
 import models
 from utils import generate_username, generate_password, allowed_file
+
 app = Flask(__name__)
 app.secret_key = config.SECRET_KEY
 app.config['UPLOAD_FOLDER'] = config.UPLOAD_FOLDER
 app.config['MAX_CONTENT_LENGTH'] = config.MAX_CONTENT_LENGTH
+
+# Secure cookie settings (for production with HTTPS)
+# These are set via environment to allow HTTP in development
+if os.environ.get('FLASK_ENV') == 'production':
+    app.config['SESSION_COOKIE_SECURE'] = True  # Only send over HTTPS
+app.config['SESSION_COOKIE_HTTPONLY'] = True  # Prevent JavaScript access
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'  # CSRF protection
+
+# CSRF protection
+csrf = CSRFProtect(app)
 
 
 # ============ Template Filters ============
@@ -373,6 +385,30 @@ def admin_material_loeschen(material_id):
     return redirect(request.referrer or url_for('admin_aufgaben'))
 
 
+@app.route('/material/<int:material_id>/download')
+def download_material(material_id):
+    """Authenticated file download - requires login as admin or student."""
+    # Check if user is logged in (admin or student)
+    if 'admin_id' not in session and 'student_id' not in session:
+        flash('Bitte melden Sie sich an.', 'warning')
+        return redirect(url_for('login'))
+
+    material = models.get_material(material_id)
+    if not material:
+        abort(404)
+
+    # Only serve files, not links
+    if material['typ'] != 'datei':
+        abort(404)
+
+    # Serve the file from the protected uploads directory
+    return send_from_directory(
+        config.UPLOAD_FOLDER,
+        material['pfad'],
+        as_attachment=False
+    )
+
+
 # ============ Admin: Wahlpflicht (Elective Groups) ============
 
 @app.route('/admin/wahlpflicht')
@@ -508,6 +544,12 @@ def student_dashboard():
 @student_required
 def student_klasse(klasse_id):
     student_id = session['student_id']
+
+    # Authorization: verify student is in this class
+    if not models.is_student_in_klasse(student_id, klasse_id):
+        flash('Zugriff verweigert.', 'danger')
+        return redirect(url_for('student_dashboard'))
+
     klasse = models.get_klasse(klasse_id)
     if not klasse:
         flash('Klasse nicht gefunden.', 'danger')
@@ -538,6 +580,12 @@ def student_klasse(klasse_id):
 @app.route('/schueler/aufgabe/<int:student_task_id>/teilaufgabe/<int:subtask_id>', methods=['POST'])
 @student_required
 def student_toggle_subtask(student_task_id, subtask_id):
+    student_id = session['student_id']
+
+    # Authorization: verify this task belongs to the student
+    if not models.is_student_task_owner(student_id, student_task_id):
+        return jsonify({'status': 'error', 'message': 'Unauthorized'}), 403
+
     erledigt = request.json.get('erledigt', False)
     models.toggle_student_subtask(student_task_id, subtask_id, erledigt)
 
@@ -688,8 +736,8 @@ def student_selbstbewertung(unterricht_id):
 
 def init_app():
     """Initialize the application."""
-    os.makedirs(config.UPLOAD_FOLDER, exist_ok=True)
-    os.makedirs(os.path.dirname(config.DATABASE), exist_ok=True)
+    os.makedirs(config.UPLOAD_FOLDER, exist_ok=True)  # instance/uploads
+    os.makedirs(os.path.dirname(config.DATABASE), exist_ok=True)  # data/
     models.init_db()
 
     # Create default admin if not exists

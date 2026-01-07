@@ -6,6 +6,7 @@
 <div class="flex flex-between flex-center mb-2">
     <h1>👤 {{ student.nachname }}, {{ student.vorname }}</h1>
     <form method="POST" action="{{ url_for('admin_schueler_loeschen', student_id=student.id) }}" onsubmit="return confirm('Schüler wirklich löschen?');">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <button type="submit" class="btn btn-danger">🗑️ Löschen</button>
     </form>
 </div>
@@ -40,6 +41,7 @@
 <div class="card mt-2">
     <div class="card-header">🔄 Schüler verschieben</div>
     <form method="POST" action="{{ url_for('admin_schueler_verschieben', student_id=student.id) }}" class="flex gap-1 flex-center">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <label>Von:</label>
         <select name="from_klasse" class="form-control" style="width: auto;" required>
             {% for klasse in klassen %}
@@ -62,6 +64,7 @@
 <div class="card mt-2">
     <div class="card-header">📝 Individuelle Aufgabe zuweisen</div>
     <form method="POST" action="{{ url_for('admin_schueler_aufgabe_zuweisen', student_id=student.id) }}" class="flex gap-1 flex-center">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <label>Klasse:</label>
         <select name="klasse_id" class="form-control" style="width: auto;" required>
             {% for klasse in klassen %}
@@ -85,6 +88,7 @@
     <div class="flex gap-1">
         {% for klasse in klassen %}
         <form method="POST" action="{{ url_for('admin_schueler_aufgabe_abschliessen', student_id=student.id, klasse_id=klasse.id) }}" style="display: inline;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <button type="submit" class="btn btn-success">{{ klasse.name }} abschließen</button>
         </form>
         {% endfor %}
