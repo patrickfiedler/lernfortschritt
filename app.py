@@ -2,7 +2,7 @@ import os
 import json
 from functools import wraps
 from datetime import date
-from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify, send_from_directory, abort
+from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify, send_from_directory, abort, Response
 from flask_wtf.csrf import CSRFProtect
 from werkzeug.utils import secure_filename
 from markupsafe import Markup
@@ -10,7 +10,7 @@ import markdown as md
 
 import config
 import models
-from utils import generate_username, generate_password, allowed_file
+from utils import generate_username, generate_password, allowed_file, generate_credentials_pdf
 
 app = Flask(__name__)
 app.secret_key = config.SECRET_KEY
@@ -164,7 +164,9 @@ def admin_klasse_schueler_hinzufuegen(klasse_id):
     batch_input = request.form['batch_input']
     existing_usernames = models.get_existing_usernames()
 
-    added = 0
+    # Collect created students for PDF
+    created_students = []
+
     for line in batch_input.strip().split('\n'):
         line = line.strip()
         if not line:
@@ -180,10 +182,31 @@ def admin_klasse_schueler_hinzufuegen(klasse_id):
 
             student_id = models.create_student(nachname, vorname, username, password)
             models.add_student_to_klasse(student_id, klasse_id)
-            added += 1
 
-    flash(f'{added} Schüler hinzugefügt. ✅', 'success')
-    return redirect(url_for('admin_klasse_detail', klasse_id=klasse_id))
+            # Store for PDF generation
+            created_students.append({
+                'nachname': nachname,
+                'vorname': vorname,
+                'username': username,
+                'password': password
+            })
+
+    if not created_students:
+        flash('Keine Schüler hinzugefügt.', 'warning')
+        return redirect(url_for('admin_klasse_detail', klasse_id=klasse_id))
+
+    # Generate PDF with credentials
+    klasse = models.get_klasse(klasse_id)
+    pdf_buffer = generate_credentials_pdf(created_students, klasse['name'])
+
+    # Return PDF as download
+    return Response(
+        pdf_buffer.getvalue(),
+        mimetype='application/pdf',
+        headers={
+            'Content-Disposition': f'attachment; filename=zugangsdaten_{klasse["name"]}.pdf'
+        }
+    )
 
 
 @app.route('/admin/klasse/<int:klasse_id>/aufgabe-zuweisen', methods=['POST'])
@@ -217,6 +240,22 @@ def admin_schueler_loeschen(student_id):
     models.delete_student(student_id)
     flash('Schüler gelöscht.', 'success')
     return redirect(request.referrer or url_for('admin_klassen'))
+
+
+@app.route('/admin/schueler/<int:student_id>/passwort-reset', methods=['POST'])
+@admin_required
+def admin_schueler_passwort_reset(student_id):
+    student = models.get_student(student_id)
+    if not student:
+        flash('Schüler nicht gefunden.', 'danger')
+        return redirect(url_for('admin_klassen'))
+
+    # Generate new password
+    new_password = generate_password()
+    models.reset_student_password(student_id, new_password)
+
+    flash(f'Neues Passwort für {student["vorname"]}: {new_password}', 'success')
+    return redirect(url_for('admin_schueler_detail', student_id=student_id))
 
 
 @app.route('/admin/schueler/<int:student_id>/verschieben', methods=['POST'])

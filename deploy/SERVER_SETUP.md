@@ -165,9 +165,61 @@ sudo systemctl restart nginx
 curl http://127.0.0.1:8080
 ```
 
+## Database Encryption (Optional but Recommended)
+
+SQLCipher provides AES-256 encryption for the SQLite database. This protects student data if the database file is stolen.
+
+### Enable Encryption on New Installation
+
+1. Generate an encryption key:
+```bash
+SQLCIPHER_KEY=$(python3 -c "import secrets; print(secrets.token_hex(32))")
+echo "Your SQLCIPHER_KEY: $SQLCIPHER_KEY"
+```
+
+2. Edit the systemd service to add the key:
+```bash
+sudo nano /etc/systemd/system/lernmanager.service
+# Uncomment and set SQLCIPHER_KEY
+```
+
+3. Reload and restart:
+```bash
+sudo systemctl daemon-reload
+sudo systemctl restart lernmanager
+```
+
+### Migrate Existing Database to Encrypted
+
+If you already have an unencrypted database:
+
+```bash
+# As the lernmanager user
+sudo -u lernmanager bash
+cd /opt/lernmanager
+source venv/bin/activate
+
+# Generate key
+export SQLCIPHER_KEY=$(python3 -c "import secrets; print(secrets.token_hex(32))")
+echo "Save this key: $SQLCIPHER_KEY"
+
+# Run migration script
+python migrate_to_sqlcipher.py
+
+# After migration succeeds, add SQLCIPHER_KEY to systemd service
+exit
+sudo nano /etc/systemd/system/lernmanager.service
+sudo systemctl daemon-reload
+sudo systemctl restart lernmanager
+```
+
+**Important:** Store your SQLCIPHER_KEY securely. If lost, the database cannot be decrypted.
+
 ## Security Notes
 
 1. **Change default admin password** after first login
 2. **Keep SECRET_KEY secret** - never commit it to git
-3. **Regular updates**: `sudo apt update && sudo apt upgrade`
-4. **Backup database**: `/opt/lernmanager/data/mbi_tracker.db`
+3. **Keep SQLCIPHER_KEY secret** - if using database encryption
+4. **Regular updates**: `sudo apt update && sudo apt upgrade`
+5. **Backup database**: `/opt/lernmanager/data/mbi_tracker.db`
+6. **Backup encryption key**: Store SQLCIPHER_KEY separately from database backup

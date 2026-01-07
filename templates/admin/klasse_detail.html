@@ -51,7 +51,6 @@
             <tr>
                 <th>Name</th>
                 <th>Benutzername</th>
-                <th>Passwort</th>
                 <th>Aktuelle Aufgabe</th>
                 <th>Status</th>
                 <th>Aktionen</th>
@@ -66,7 +65,6 @@
                     </a>
                 </td>
                 <td><code>{{ student.username }}</code></td>
-                <td><code>{{ student.password_plain }}</code></td>
                 <td>
                     {% if student.task_name %}
                         {{ student.task_name }}

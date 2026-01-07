@@ -16,7 +16,12 @@
     <div class="card">
         <div class="card-header">🔑 Anmeldedaten</div>
         <p><strong>Benutzername:</strong> <code>{{ student.username }}</code></p>
-        <p><strong>Passwort:</strong> <code>{{ student.password_plain }}</code></p>
+        <p class="text-muted" style="font-size: 0.9em;">Passwort nur bei Erstellung oder Reset sichtbar</p>
+        <form method="POST" action="{{ url_for('admin_schueler_passwort_reset', student_id=student.id) }}"
+              onsubmit="return confirm('Passwort wirklich zurücksetzen? Das alte Passwort wird ungültig.');" class="mt-1">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="btn btn-warning">🔄 Passwort zurücksetzen</button>
+        </form>
     </div>
 
     <!-- Classes -->

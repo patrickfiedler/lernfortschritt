@@ -1,9 +1,25 @@
-import sqlite3
 import json
+import os
+import sys
 from hashlib import sha256
 from contextlib import contextmanager
 from werkzeug.security import generate_password_hash, check_password_hash
 import config
+
+# SQLCipher support: Use encrypted database if SQLCIPHER_KEY is set
+SQLCIPHER_KEY = os.environ.get('SQLCIPHER_KEY')
+USE_SQLCIPHER = False
+
+if SQLCIPHER_KEY:
+    try:
+        from sqlcipher3 import dbapi2 as sqlite3
+        USE_SQLCIPHER = True
+    except ImportError:
+        import sqlite3
+        print("WARNING: SQLCIPHER_KEY is set but sqlcipher3 is not installed.", file=sys.stderr)
+        print("Database will NOT be encrypted. Install with: pip install sqlcipher3-binary", file=sys.stderr)
+else:
+    import sqlite3
 
 
 def hash_password(password):
@@ -37,6 +53,10 @@ def get_db():
     """Get database connection."""
     conn = sqlite3.connect(config.DATABASE)
     conn.row_factory = sqlite3.Row
+    if USE_SQLCIPHER and SQLCIPHER_KEY:
+        # Set encryption key - escape any double quotes in key
+        safe_key = SQLCIPHER_KEY.replace('"', '""')
+        conn.execute(f'PRAGMA key = "{safe_key}"')
     conn.execute("PRAGMA foreign_keys = ON")
     return conn
 
@@ -78,8 +98,7 @@ def init_db():
                 nachname TEXT NOT NULL,
                 vorname TEXT NOT NULL,
                 username TEXT UNIQUE NOT NULL,
-                password_hash TEXT NOT NULL,
-                password_plain TEXT  -- Stored for admin to view, remove in production
+                password_hash TEXT NOT NULL
             );
 
             -- Student-Class relationship (many-to-many)
@@ -397,8 +416,8 @@ def create_student(nachname, vorname, username, password):
     """Create a new student."""
     with db_session() as conn:
         cursor = conn.execute(
-            "INSERT INTO student (nachname, vorname, username, password_hash, password_plain) VALUES (?, ?, ?, ?, ?)",
-            (nachname, vorname, username, hash_password(password), password)
+            "INSERT INTO student (nachname, vorname, username, password_hash) VALUES (?, ?, ?, ?)",
+            (nachname, vorname, username, hash_password(password))
         )
         return cursor.lastrowid
 
@@ -436,6 +455,15 @@ def delete_student(student_id):
     """Delete a student."""
     with db_session() as conn:
         conn.execute("DELETE FROM student WHERE id = ?", (student_id,))
+
+
+def reset_student_password(student_id, new_password):
+    """Reset a student's password."""
+    with db_session() as conn:
+        conn.execute(
+            "UPDATE student SET password_hash = ? WHERE id = ?",
+            (hash_password(new_password), student_id)
+        )
 
 
 def get_students_in_klasse(klasse_id):

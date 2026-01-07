@@ -8,9 +8,11 @@ User=lernmanager
 Group=lernmanager
 WorkingDirectory=/opt/lernmanager
 
-# Generate a secure key: python3 -c "import secrets; print(secrets.token_hex(32))"
+# Generate secure keys: python3 -c "import secrets; print(secrets.token_hex(32))"
 Environment="SECRET_KEY=CHANGE_ME_TO_RANDOM_STRING"
 Environment="FLASK_ENV=production"
+# Optional: Database encryption key (requires sqlcipher3-binary)
+# Environment="SQLCIPHER_KEY=CHANGE_ME_TO_RANDOM_STRING"
 
 ExecStart=/opt/lernmanager/venv/bin/python run.py
 Restart=always
