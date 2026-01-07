@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "Lernfortschritt Task Definition",
-  "description": "Schema for importing tasks into Lernfortschritt",
+  "title": "Lernmanager Task Definition",
+  "description": "Schema for importing tasks into Lernmanager",
   "type": "object",
   "required": ["task"],
   "properties": {

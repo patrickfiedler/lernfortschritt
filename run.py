@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Lernfortschritt - Production Server
+Lernmanager - Production Server
 Run with: python run.py
 """
 
@@ -12,7 +12,7 @@ if __name__ == '__main__':
     init_app()
 
     print("=" * 50)
-    print("📚 Lernfortschritt")
+    print("📚 Lernmanager")
     print("=" * 50)
     print("Server läuft auf: http://localhost:8080")
     print("Admin-Login: admin / admin")

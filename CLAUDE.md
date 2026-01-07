@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Lernfortschritt is a German-language learning progress tracker for schools. It allows teachers (admins) to manage classes, students, and learning tasks, while students can track their progress on assigned tasks, complete subtasks, and take quizzes.
+Lernmanager is a German-language learning progress tracker for schools. It allows teachers (admins) to manage classes, students, and learning tasks, while students can track their progress on assigned tasks, complete subtasks, and take quizzes.
 
 ## Commands
 

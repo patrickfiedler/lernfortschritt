@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Task Import Script for Lernfortschritt
+Task Import Script for Lernmanager
 
 Import task definitions from JSON files into the database.
 
@@ -288,7 +288,7 @@ def list_tasks():
 
 def main():
     parser = argparse.ArgumentParser(
-        description='Import task definitions into Lernfortschritt database',
+        description='Import task definitions into Lernmanager database',
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog='''
 Examples:
