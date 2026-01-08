@@ -53,15 +53,26 @@ Student-class is many-to-many. Each student has one active task per class. Tasks
 4. Students complete subtasks and take quizzes (80% to pass)
 5. Task auto-completes when all subtasks done + quiz passed (or admin manual override)
 
-## Git Workflow
+## Deployment
 
+### Initial Server Setup
+- Run `deploy/setup.sh` on the server (once per server)
+- Automated one-command setup: `curl -sSL https://raw.githubusercontent.com/patrickfiedler/lernmanager/main/deploy/setup.sh | sudo bash`
+- Auto-generates SECRET_KEY and stores in systemd service
+- Creates lernmanager user, clones repo, sets up venv, starts service
+
+### Updates
+- Run `deploy/update.sh` on server after pushing to GitHub
+- Usage: `ssh user@server 'sudo /opt/lernmanager/deploy/update.sh'`
+- Auto-detects changes in requirements.txt and systemd service
+- Preserves secrets across updates
+- Automatically rolls back if service fails to start
+
+### Git Workflow
 - Work directly on **main** branch
 - Commit and push changes to GitHub
-- Deploy with `./deploy/deploy.sh` - it will push to GitHub and pull on server
-- The deployment script requires:
-  - All changes committed (no uncommitted files)
-  - Currently on main branch
-  - Will automatically push to GitHub before deploying
+- SSH to server and run update.sh
+- The update script will pull latest code and restart service
 
 ## Conventions
 

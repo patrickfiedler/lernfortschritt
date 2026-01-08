@@ -4,6 +4,10 @@ static/uploads/*
 !static/uploads/.gitkeep
 task_definitions/
 
+# Planning files
+task_plan.md
+notes.md
+
 # Python
 __pycache__/
 *.pyc
