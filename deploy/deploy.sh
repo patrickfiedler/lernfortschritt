@@ -9,6 +9,7 @@
 # Prerequisites:
 #   - SSH key authentication to server
 #   - sudo access for systemctl (passwordless recommended for deploy user)
+#   - Repository cloned on server at /opt/lernmanager
 #
 
 set -e
@@ -17,6 +18,7 @@ set -e
 SERVER="${LERNMANAGER_SERVER:-}"
 APP_DIR="/opt/lernmanager"
 LOCAL_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+BRANCH="main"
 
 # Colors for output
 RED='\033[0;31m'
@@ -32,19 +34,37 @@ if [ -z "$SERVER" ]; then
 fi
 
 # Check we're on main branch
-BRANCH=$(git -C "$LOCAL_DIR" rev-parse --abbrev-ref HEAD)
-if [ "$BRANCH" != "main" ]; then
-    echo -e "${RED}Error: Not on main branch (currently on '$BRANCH')${NC}"
-    echo "Switch to main branch before deploying."
+CURRENT_BRANCH=$(git -C "$LOCAL_DIR" rev-parse --abbrev-ref HEAD)
+if [ "$CURRENT_BRANCH" != "$BRANCH" ]; then
+    echo -e "${RED}Error: Not on $BRANCH branch (currently on '$CURRENT_BRANCH')${NC}"
+    echo "Switch to $BRANCH branch before deploying."
     exit 1
 fi
 
 # Check for uncommitted changes
 if ! git -C "$LOCAL_DIR" diff-index --quiet HEAD --; then
-    echo -e "${YELLOW}Warning: You have uncommitted changes${NC}"
-    read -p "Continue anyway? (y/N) " -n 1 -r
+    echo -e "${RED}Error: You have uncommitted changes${NC}"
+    echo "Commit or stash your changes before deploying."
+    exit 1
+fi
+
+# Check if local is ahead of remote
+LOCAL_COMMIT=$(git -C "$LOCAL_DIR" rev-parse HEAD)
+git -C "$LOCAL_DIR" fetch origin $BRANCH
+REMOTE_COMMIT=$(git -C "$LOCAL_DIR" rev-parse origin/$BRANCH)
+
+if [ "$LOCAL_COMMIT" != "$REMOTE_COMMIT" ]; then
+    echo -e "${YELLOW}Local branch is not in sync with remote${NC}"
+    echo "Local:  $LOCAL_COMMIT"
+    echo "Remote: $REMOTE_COMMIT"
+    echo ""
+    read -p "Push local changes to remote? (y/N) " -n 1 -r
     echo
-    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+    if [[ $REPLY =~ ^[Yy]$ ]]; then
+        echo "Pushing to origin/$BRANCH..."
+        git -C "$LOCAL_DIR" push origin $BRANCH
+    else
+        echo -e "${RED}Deployment cancelled${NC}"
         exit 1
     fi
 fi
@@ -52,27 +72,24 @@ fi
 echo -e "${YELLOW}Deploying Lernmanager to ${SERVER}...${NC}"
 echo ""
 
-# Sync files
-echo "Syncing files..."
-rsync -avz --delete \
-    --exclude='.git' \
-    --exclude='__pycache__' \
-    --exclude='data' \
-    --exclude='instance' \
-    --exclude='todo.md' \
-    --exclude='*.pyc' \
-    --exclude='venv' \
-    "$LOCAL_DIR/" "$SERVER:$APP_DIR/"
+# Pull latest code on server
+echo "Pulling latest code from repository..."
+ssh "$SERVER" "cd $APP_DIR && sudo -u lernmanager git fetch origin && sudo -u lernmanager git reset --hard origin/$BRANCH"
 
-# Fix permissions
+# Create writable directories
 echo ""
-echo "Fixing permissions..."
-ssh "$SERVER" "sudo chown -R lernmanager:lernmanager $APP_DIR && sudo chmod 755 $APP_DIR && sudo chmod -R 755 $APP_DIR/static"
+echo "Creating writable directories..."
+ssh "$SERVER" "sudo mkdir -p $APP_DIR/instance/uploads $APP_DIR/instance/tmp $APP_DIR/data && sudo chown -R lernmanager:lernmanager $APP_DIR/instance $APP_DIR/data && sudo chmod 755 $APP_DIR/instance/uploads $APP_DIR/instance/tmp $APP_DIR/data"
 
 # Update dependencies
 echo ""
 echo "Updating dependencies..."
 ssh "$SERVER" "sudo -u lernmanager $APP_DIR/venv/bin/pip install -q -r $APP_DIR/requirements.txt"
+
+# Update systemd service file
+echo ""
+echo "Updating systemd service..."
+ssh "$SERVER" "sudo cp $APP_DIR/deploy/lernmanager.service /etc/systemd/system/lernmanager.service && sudo systemctl daemon-reload"
 
 # Restart service
 echo ""
@@ -81,6 +98,9 @@ ssh "$SERVER" "sudo systemctl restart lernmanager"
 
 echo ""
 echo -e "${GREEN}Deployment complete!${NC}"
+echo ""
+echo "Deployed commit:"
+ssh "$SERVER" "cd $APP_DIR && git log -1 --oneline"
 echo ""
 echo "Service status:"
 ssh "$SERVER" "systemctl status lernmanager --no-pager -l"

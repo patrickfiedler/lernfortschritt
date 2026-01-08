@@ -2,6 +2,7 @@
 data/
 static/uploads/*
 !static/uploads/.gitkeep
+task_definitions/
 
 # Python
 __pycache__/

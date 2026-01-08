@@ -26,12 +26,12 @@ sudo useradd -r -s /usr/sbin/nologin -m -d /opt/lernmanager lernmanager
 ## 3. Clone Repository
 
 ```bash
-# Clone as root, then change ownership
-sudo git clone YOUR_REPO_URL /opt/lernmanager
+# Clone the public repository
+sudo git clone https://github.com/YOUR_USERNAME/lernmanager.git /opt/lernmanager
 sudo chown -R lernmanager:lernmanager /opt/lernmanager
 ```
 
-**Note:** If your repo is private, you'll need to set up deploy keys or use HTTPS with credentials.
+**Note:** Replace `YOUR_USERNAME/lernmanager` with your actual GitHub repository path.
 
 ## 4. Set Up Python Environment
 
@@ -46,8 +46,9 @@ sudo -u lernmanager /opt/lernmanager/venv/bin/pip install -r /opt/lernmanager/re
 ## 5. Create Data Directories
 
 ```bash
-sudo -u lernmanager mkdir -p /opt/lernmanager/data
-sudo -u lernmanager mkdir -p /opt/lernmanager/static/uploads
+sudo mkdir -p /opt/lernmanager/data /opt/lernmanager/instance/uploads /opt/lernmanager/instance/tmp
+sudo chown -R lernmanager:lernmanager /opt/lernmanager/data /opt/lernmanager/instance
+sudo chmod 755 /opt/lernmanager/instance/uploads /opt/lernmanager/instance/tmp
 ```
 
 ## 6. Configure Systemd Service
@@ -120,9 +121,9 @@ To allow deployment without entering a password:
 sudo visudo -f /etc/sudoers.d/lernmanager-deploy
 ```
 
-Add this line (replace `deployuser` with your SSH user):
+Add these lines (replace `deployuser` with your SSH user):
 ```
-deployuser ALL=(ALL) NOPASSWD: /bin/systemctl restart lernmanager, /bin/systemctl status lernmanager
+deployuser ALL=(ALL) NOPASSWD: /bin/systemctl restart lernmanager, /bin/systemctl status lernmanager, /bin/systemctl daemon-reload, /bin/mkdir, /bin/chown, /bin/chmod, /bin/cp
 ```
 
 ## Deployment Workflow
@@ -130,7 +131,11 @@ deployuser ALL=(ALL) NOPASSWD: /bin/systemctl restart lernmanager, /bin/systemct
 After initial setup, deploy updates with:
 
 ```bash
-# From your local machine
+# From your local machine - ensure changes are committed
+git add .
+git commit -m "your changes"
+
+# Deploy (will push to GitHub then pull on server)
 LERNMANAGER_SERVER=user@your-server.de ./deploy/deploy.sh
 ```
 
@@ -139,6 +144,12 @@ Or set the environment variable permanently:
 export LERNMANAGER_SERVER=user@your-server.de
 ./deploy/deploy.sh
 ```
+
+The deployment script will:
+1. Check you're on the main branch with no uncommitted changes
+2. Push your changes to GitHub
+3. SSH to the server and pull the latest code
+4. Update dependencies and restart the service
 
 ## Troubleshooting
 

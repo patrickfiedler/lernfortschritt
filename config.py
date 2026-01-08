@@ -17,7 +17,7 @@ if not SECRET_KEY:
 DATABASE = os.path.join(BASE_DIR, 'data', 'mbi_tracker.db')
 # Store uploads outside static/ to require authentication for access
 UPLOAD_FOLDER = os.path.join(BASE_DIR, 'instance', 'uploads')
-MAX_CONTENT_LENGTH = 16 * 1024 * 1024  # 16 MB max upload
+MAX_CONTENT_LENGTH = 64 * 1024 * 1024  # 64 MB max upload
 
 # Allowed file extensions for uploads
 ALLOWED_EXTENSIONS = {'pdf', 'png', 'jpg', 'jpeg', 'gif'}

@@ -53,10 +53,13 @@ Student-class is many-to-many. Each student has one active task per class. Tasks
 
 ## Git Workflow
 
-- **develop**: Active development branch - always work here
-- **main**: Production-ready code only - do not commit directly
-- Merge `develop` → `main` only when ready for deployment
-- Deploy with `./deploy/deploy.sh` after pushing to main
+- Work directly on **main** branch
+- Commit and push changes to GitHub
+- Deploy with `./deploy/deploy.sh` - it will push to GitHub and pull on server
+- The deployment script requires:
+  - All changes committed (no uncommitted files)
+  - Currently on main branch
+  - Will automatically push to GitHub before deploying
 
 ## Conventions
 

@@ -400,18 +400,54 @@ def admin_aufgabe_material_upload(task_id):
         flash('Keine Datei ausgewählt.', 'warning')
         return redirect(url_for('admin_aufgabe_detail', task_id=task_id))
 
-    if file and allowed_file(file.filename):
+    if not (file and allowed_file(file.filename)):
+        flash('Ungültiger Dateityp. Erlaubt: PDF, PNG, JPG, JPEG, GIF', 'danger')
+        return redirect(url_for('admin_aufgabe_detail', task_id=task_id))
+
+    try:
+        # Ensure upload directory exists
+        os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+
         filename = secure_filename(file.filename)
+        if not filename:
+            flash('Ungültiger Dateiname.', 'danger')
+            return redirect(url_for('admin_aufgabe_detail', task_id=task_id))
+
         # Add task_id to make filename unique
         filename = f"{task_id}_{filename}"
         filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+
+        # Save the file
         file.save(filepath)
 
+        # Verify file was saved
+        if not os.path.exists(filepath):
+            raise IOError('Datei wurde nicht gespeichert.')
+
+        # Add to database
         beschreibung = request.form.get('beschreibung', '').strip()
         models.create_material(task_id, 'datei', filename, beschreibung)
+
         flash('Datei hochgeladen. ✅', 'success')
-    else:
-        flash('Ungültiger Dateityp.', 'danger')
+
+    except PermissionError as e:
+        app.logger.error(f'Upload permission error: {e}')
+        flash('Fehler: Keine Berechtigung zum Speichern der Datei. Bitte Administrator kontaktieren.', 'danger')
+    except OSError as e:
+        app.logger.error(f'Upload OS error: {e}')
+        if 'No space left' in str(e):
+            flash('Fehler: Kein Speicherplatz verfügbar.', 'danger')
+        else:
+            flash('Fehler: Datei konnte nicht gespeichert werden.', 'danger')
+    except Exception as e:
+        app.logger.error(f'Upload error: {e}')
+        flash('Fehler beim Hochladen der Datei. Bitte erneut versuchen.', 'danger')
+        # Clean up partially uploaded file if it exists
+        if 'filepath' in locals() and os.path.exists(filepath):
+            try:
+                os.remove(filepath)
+            except:
+                pass
 
     return redirect(url_for('admin_aufgabe_detail', task_id=task_id))
 
@@ -419,8 +455,28 @@ def admin_aufgabe_material_upload(task_id):
 @app.route('/admin/material/<int:material_id>/loeschen', methods=['POST'])
 @admin_required
 def admin_material_loeschen(material_id):
-    models.delete_material(material_id)
-    flash('Material gelöscht.', 'success')
+    try:
+        # Get material info before deleting from database
+        material = models.get_material(material_id)
+
+        # Delete from database
+        models.delete_material(material_id)
+
+        # If it's a file (not a link), try to delete the physical file
+        if material and material['typ'] == 'datei':
+            filepath = os.path.join(app.config['UPLOAD_FOLDER'], material['pfad'])
+            if os.path.exists(filepath):
+                try:
+                    os.remove(filepath)
+                except Exception as e:
+                    app.logger.warning(f'Could not delete file {filepath}: {e}')
+                    # Don't fail the whole operation if file deletion fails
+
+        flash('Material gelöscht.', 'success')
+    except Exception as e:
+        app.logger.error(f'Error deleting material: {e}')
+        flash('Fehler beim Löschen des Materials.', 'danger')
+
     return redirect(request.referrer or url_for('admin_aufgaben'))
 
 
@@ -440,12 +496,28 @@ def download_material(material_id):
     if material['typ'] != 'datei':
         abort(404)
 
-    # Serve the file from the protected uploads directory
-    return send_from_directory(
-        config.UPLOAD_FOLDER,
-        material['pfad'],
-        as_attachment=False
-    )
+    # Verify file exists before serving
+    filepath = os.path.join(config.UPLOAD_FOLDER, material['pfad'])
+    if not os.path.exists(filepath):
+        app.logger.error(f'File not found: {filepath}')
+        flash('Datei nicht gefunden.', 'danger')
+        abort(404)
+
+    try:
+        # Serve the file from the protected uploads directory
+        return send_from_directory(
+            config.UPLOAD_FOLDER,
+            material['pfad'],
+            as_attachment=False
+        )
+    except PermissionError as e:
+        app.logger.error(f'Download permission error: {e}')
+        flash('Fehler: Keine Berechtigung zum Lesen der Datei.', 'danger')
+        abort(403)
+    except Exception as e:
+        app.logger.error(f'Download error: {e}')
+        flash('Fehler beim Laden der Datei.', 'danger')
+        abort(500)
 
 
 # ============ Admin: Wahlpflicht (Elective Groups) ============
@@ -809,6 +881,7 @@ def student_selbstbewertung(unterricht_id):
 def init_app():
     """Initialize the application."""
     os.makedirs(config.UPLOAD_FOLDER, exist_ok=True)  # instance/uploads
+    os.makedirs(os.path.join(os.path.dirname(config.UPLOAD_FOLDER), 'tmp'), exist_ok=True)  # instance/tmp
     os.makedirs(os.path.dirname(config.DATABASE), exist_ok=True)  # data/
     models.init_db()
 

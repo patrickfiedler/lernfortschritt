@@ -11,6 +11,8 @@ WorkingDirectory=/opt/lernmanager
 # Generate secure keys: python3 -c "import secrets; print(secrets.token_hex(32))"
 Environment="SECRET_KEY=CHANGE_ME_TO_RANDOM_STRING"
 Environment="FLASK_ENV=production"
+# Temporary directory for file uploads (Flask/Werkzeug needs this)
+Environment="TMPDIR=/opt/lernmanager/instance/tmp"
 # Optional: Database encryption key (requires sqlcipher3-binary)
 # Environment="SQLCIPHER_KEY=CHANGE_ME_TO_RANDOM_STRING"
 
@@ -22,7 +24,7 @@ RestartSec=5
 NoNewPrivileges=true
 ProtectSystem=strict
 ProtectHome=true
-ReadWritePaths=/opt/lernmanager/data /opt/lernmanager/instance/uploads
+ReadWritePaths=/opt/lernmanager/data /opt/lernmanager/instance/uploads /opt/lernmanager/instance/tmp
 
 [Install]
 WantedBy=multi-user.target

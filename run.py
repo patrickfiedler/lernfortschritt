@@ -20,5 +20,14 @@ if __name__ == '__main__':
     print("Zum Beenden: Strg+C")
     print()
 
-    # Run with waitress
-    serve(app, host='0.0.0.0', port=8080)
+    # Run with waitress - configured for file uploads
+    serve(
+        app,
+        host='0.0.0.0',
+        port=8080,
+        threads=4,                    # Number of worker threads
+        channel_timeout=120,          # Timeout for connections (2 minutes)
+        recv_bytes=65536,             # 64KB receive buffer (for uploads)
+        send_bytes=65536,             # 64KB send buffer
+        max_request_body_size=67108864  # 64MB (matches Flask's MAX_CONTENT_LENGTH)
+    )
