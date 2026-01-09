@@ -125,10 +125,16 @@ main() {
         exit 1
     fi
 
-    if ! systemctl list-unit-files | grep -q lernmanager.service; then
-        log_error "Systemd service 'lernmanager' not found"
+    if [ ! -f "$SYSTEMD_SERVICE" ]; then
+        log_error "Systemd service file not found at $SYSTEMD_SERVICE"
         log_error "Run deploy/setup.sh first to perform initial installation"
         exit 1
+    fi
+
+    # Verify service is known to systemd
+    if ! systemctl list-units --all --full | grep -q "lernmanager.service"; then
+        log_warn "Service file exists but may need systemctl daemon-reload"
+        systemctl daemon-reload
     fi
 
     log_info "Environment validated successfully"
