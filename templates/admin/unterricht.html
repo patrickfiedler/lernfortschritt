@@ -52,8 +52,12 @@
             <tr data-student-id="{{ student.student_id }}">
                 <td><strong>{{ student.nachname }}, {{ student.vorname }}</strong></td>
                 <td>
-                    <label class="attendance-toggle {% if student.anwesend %}active{% endif %}" onclick="toggleAttendance(this, {{ student.student_id }})">
-                        <input type="hidden" name="anwesend" value="{{ student.anwesend }}">
+                    <label class="attendance-toggle" data-student-id="{{ student.student_id }}">
+                        <input type="checkbox" {% if student.anwesend %}checked{% endif %} onchange="toggleAttendance(this, {{ student.student_id }})">
+                        <span class="attendance-label">
+                            <span class="attendance-icon">✓</span>
+                            Anwesend
+                        </span>
                     </label>
                 </td>
                 <td>
@@ -114,7 +118,7 @@ function saveStudent(studentId) {
     const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
     const data = new FormData();
     data.append('student_id', studentId);
-    data.append('anwesend', row.querySelector('.attendance-toggle').classList.contains('active') ? '1' : '');
+    data.append('anwesend', row.querySelector('.attendance-toggle input[type="checkbox"]').checked ? '1' : '');
 
     // Get ratings
     ['admin_selbststaendigkeit', 'admin_respekt', 'admin_fortschritt'].forEach(field => {
@@ -134,10 +138,51 @@ function saveStudent(studentId) {
     });
 }
 
-function toggleAttendance(el, studentId) {
-    el.classList.toggle('active');
+function updateAttendanceUI(row, isPresent) {
+    const ratingButtons = row.querySelectorAll('.rating-btn');
+    const commentInput = row.querySelector('input[type="text"]');
+
+    ratingButtons.forEach(btn => {
+        btn.disabled = !isPresent;
+        if (!isPresent) {
+            btn.classList.add('disabled');
+        } else {
+            btn.classList.remove('disabled');
+        }
+    });
+
+    commentInput.disabled = !isPresent;
+
+    // Clear ratings if marking absent
+    if (!isPresent) {
+        ratingButtons.forEach(btn => {
+            btn.classList.remove('active-1', 'active-2', 'active-3', 'unsaved');
+        });
+        commentInput.value = '';
+    }
+}
+
+function toggleAttendance(checkbox, studentId) {
+    const row = document.querySelector(`tr[data-student-id="${studentId}"]`);
+    const isPresent = checkbox.checked;
+
+    // Update UI based on attendance
+    updateAttendanceUI(row, isPresent);
+
+    // Mark as changed (Phase 7 will implement this)
+    // For now, keep auto-save for attendance only
     saveStudent(studentId);
 }
+
+// Initialize attendance UI on page load
+document.addEventListener('DOMContentLoaded', () => {
+    document.querySelectorAll('tr[data-student-id]').forEach(row => {
+        const checkbox = row.querySelector('.attendance-toggle input[type="checkbox"]');
+        if (checkbox) {
+            updateAttendanceUI(row, checkbox.checked);
+        }
+    });
+});
 
 function setRating(btn, studentId, field, value) {
     const group = btn.parentElement;
