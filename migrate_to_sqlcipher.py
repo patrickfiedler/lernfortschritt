@@ -71,16 +71,26 @@ def migrate():
     # Get schema and data from source
     cursor = source_conn.cursor()
 
-    # Export schema
-    cursor.execute("SELECT sql FROM sqlite_master WHERE type='table' AND sql IS NOT NULL")
+    # Export schema (skip internal sqlite_ tables)
+    cursor.execute("""
+        SELECT sql FROM sqlite_master
+        WHERE type='table'
+        AND sql IS NOT NULL
+        AND name NOT LIKE 'sqlite_%'
+    """)
     tables = cursor.fetchall()
 
     for table in tables:
         if table[0]:
             dest_conn.execute(table[0])
 
-    # Export indexes
-    cursor.execute("SELECT sql FROM sqlite_master WHERE type='index' AND sql IS NOT NULL")
+    # Export indexes (skip auto-created ones)
+    cursor.execute("""
+        SELECT sql FROM sqlite_master
+        WHERE type='index'
+        AND sql IS NOT NULL
+        AND name NOT LIKE 'sqlite_%'
+    """)
     indexes = cursor.fetchall()
 
     for index in indexes:
