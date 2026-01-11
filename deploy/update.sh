@@ -157,11 +157,44 @@ main() {
 
     # 3. Pull latest code
     log_step "Step 3/7: Pulling Latest Code"
+
+    # Fix git ownership issue (required when running with sudo)
+    log_info "Configuring git safe directory..."
+    if ! git config --global --get-all safe.directory | grep -q "^$APP_DIR$"; then
+        git config --global --add safe.directory "$APP_DIR"
+        log_info "Added $APP_DIR to git safe.directory"
+    fi
+
+    # Verify repository ownership and permissions
+    log_info "Verifying repository ownership..."
+    REPO_OWNER=$(stat -c '%U' "$APP_DIR/.git")
+    if [ "$REPO_OWNER" != "$APP_USER" ]; then
+        log_error "Repository ownership mismatch:"
+        log_error "  Expected owner: $APP_USER"
+        log_error "  Actual owner:   $REPO_OWNER"
+        log_error "  Repository:     $APP_DIR/.git"
+        log_error ""
+        log_error "Fix with: sudo chown -R $APP_USER:$APP_USER $APP_DIR"
+        exit 1
+    fi
+
     log_info "Fetching from origin/$BRANCH..."
-    sudo -u "$APP_USER" git fetch origin "$BRANCH"
+    if ! sudo -u "$APP_USER" git fetch origin "$BRANCH" 2>&1 | tee /tmp/git_fetch.log; then
+        log_error "Git fetch failed. Output:"
+        cat /tmp/git_fetch.log
+        rm -f /tmp/git_fetch.log
+        exit 1
+    fi
+    rm -f /tmp/git_fetch.log
 
     log_info "Resetting to origin/$BRANCH..."
-    sudo -u "$APP_USER" git reset --hard "origin/$BRANCH"
+    if ! sudo -u "$APP_USER" git reset --hard "origin/$BRANCH" 2>&1 | tee /tmp/git_reset.log; then
+        log_error "Git reset failed. Output:"
+        cat /tmp/git_reset.log
+        rm -f /tmp/git_reset.log
+        exit 1
+    fi
+    rm -f /tmp/git_reset.log
 
     NEW_COMMIT=$(sudo -u "$APP_USER" git rev-parse HEAD)
     NEW_COMMIT_SHORT=$(sudo -u "$APP_USER" git rev-parse --short HEAD)
