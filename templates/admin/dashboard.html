@@ -27,16 +27,18 @@
     </div>
 </div>
 
-{% if klassen %}
 <div class="card mt-2">
     <div class="card-header">📅 Unterricht heute</div>
+    {% if klassen_heute %}
     <div class="grid grid-2">
-        {% for klasse in klassen %}
+        {% for klasse in klassen_heute %}
         <a href="{{ url_for('admin_unterricht', klasse_id=klasse.id) }}" class="btn btn-secondary">
             {{ klasse.name }}
         </a>
         {% endfor %}
     </div>
+    {% else %}
+    <p class="text-muted" style="padding: 1rem;">Keine Unterrichtsstunden heute geplant</p>
+    {% endif %}
 </div>
-{% endif %}
 {% endblock %}

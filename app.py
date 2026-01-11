@@ -1,7 +1,7 @@
 import os
 import json
 from functools import wraps
-from datetime import date
+from datetime import date, datetime
 from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify, send_from_directory, abort, Response
 from flask_wtf.csrf import CSRFProtect
 from werkzeug.utils import secure_filename
@@ -113,7 +113,16 @@ def logout():
 def admin_dashboard():
     klassen = models.get_all_klassen()
     tasks = models.get_all_tasks()
-    return render_template('admin/dashboard.html', klassen=klassen, tasks=tasks)
+
+    # Filter classes for "Unterricht heute" based on schedule
+    today_weekday = datetime.today().weekday()  # 0=Monday, 6=Sunday
+    klassen_heute = []
+    for klasse in klassen:
+        schedule = models.get_class_schedule(klasse['id'])
+        if schedule and schedule['weekday'] == today_weekday:
+            klassen_heute.append(klasse)
+
+    return render_template('admin/dashboard.html', klassen=klassen, tasks=tasks, klassen_heute=klassen_heute)
 
 
 # ============ Admin: Klassen ============
