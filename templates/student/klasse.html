@@ -58,7 +58,7 @@
     <div class="subtask-list-enhanced">
         {% for sub in subtasks %}
         <div class="subtask-card {% if sub.erledigt %}completed{% endif %}" data-subtask-id="{{ sub.id }}">
-            <div class="subtask-number">Aktuell</div>
+            <div class="subtask-number">{{ sub.reihenfolge + 1 }}</div>
             <div class="subtask-content markdown-content">
                 {{ sub.beschreibung | markdown }}
             </div>
