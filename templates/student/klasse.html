@@ -44,11 +44,57 @@
 <div class="card mt-2">
     <div class="card-header flex flex-between">
         <span>✅ Teilaufgaben</span>
-        {% if subtasks %}
-        <span id="progress-text" class="text-muted">{{ subtasks|selectattr('erledigt')|list|length }}/{{ subtasks|length }}</span>
+        {% if all_subtasks %}
+        <span id="progress-text" class="text-muted">{{ all_subtasks|selectattr('erledigt')|list|length }}/{{ all_subtasks|length }}</span>
         {% endif %}
     </div>
-    {% if subtasks %}
+
+    {% if current_subtask %}
+    <!-- Current subtask mode: show only current subtask -->
+    <div class="mb-1">
+        <p class="text-muted">Du arbeitest gerade an dieser Teilaufgabe:</p>
+    </div>
+
+    <div class="subtask-list-enhanced">
+        {% for sub in subtasks %}
+        <div class="subtask-card {% if sub.erledigt %}completed{% endif %}" data-subtask-id="{{ sub.id }}">
+            <div class="subtask-number">Aktuell</div>
+            <div class="subtask-content markdown-content">
+                {{ sub.beschreibung | markdown }}
+            </div>
+            <label class="subtask-toggle">
+                <input type="checkbox" class="subtask-checkbox"
+                       {% if sub.erledigt %}checked{% endif %}
+                       {% if task.abgeschlossen %}disabled{% endif %}
+                       onchange="toggleSubtask({{ task.id }}, {{ sub.id }}, this.checked)">
+                <span class="subtask-checkmark"></span>
+            </label>
+        </div>
+        {% endfor %}
+    </div>
+
+    {% if completed_subtasks %}
+    <details class="mt-1">
+        <summary style="cursor: pointer; color: #059669; font-weight: 500;">✓ {{ completed_subtasks|length }} Teilaufgabe(n) bereits erledigt</summary>
+        <div class="mt-1" style="padding-left: 1rem;">
+            {% for sub in completed_subtasks %}
+            <div style="color: #6b7280; margin-bottom: 0.5rem;">
+                <span style="color: #059669;">✓</span> {{ sub.beschreibung[:80] }}{% if sub.beschreibung|length > 80 %}...{% endif %}
+            </div>
+            {% endfor %}
+        </div>
+    </details>
+    {% endif %}
+
+    <div class="mt-1">
+        <div class="progress-container">
+            <div class="progress-bar" id="progress-bar"
+                 style="width: {{ (all_subtasks|selectattr('erledigt')|list|length / all_subtasks|length * 100) if all_subtasks|length > 0 else 0 }}%;"></div>
+        </div>
+    </div>
+
+    {% elif subtasks %}
+    <!-- Legacy mode: show all subtasks -->
     <div class="subtask-list-enhanced">
         {% for sub in subtasks %}
         <div class="subtask-card {% if sub.erledigt %}completed{% endif %}" data-subtask-id="{{ sub.id }}">

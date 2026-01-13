@@ -15,9 +15,9 @@
 
 ## Improvements
 
-- student view: show only the current (or the first) subtask of the active task
+- ~~student view: show only the current (or the first) subtask of the active task~~ (Complete - see subtask_implementation_summary.md)
+- ~~admin view: assign particular subtasks to classes and to students~~ (Complete - see subtask_implementation_summary.md)
 - (low priority, optional) student view: show visual learning map of open tasks and how they connect to each other; for the moment only for informational purposes
-- admin view: assign particular subtasks to classes and to students
 - admin view: when batch-importing students, add the url of the app to each line, along with username and password (either hardcode lernen.mrfiedler.de, or maybe read from configuration or HTML headers?)
 - admin view: allow individual students to see all available tasks, but default to the current behaviour (students see only the active task)
 

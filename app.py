@@ -282,9 +282,15 @@ def admin_klasse_schueler_hinzufuegen(klasse_id):
 @admin_required
 def admin_klasse_aufgabe_zuweisen(klasse_id):
     task_id = request.form['task_id']
+    subtask_id = request.form.get('subtask_id')
     if task_id:
-        models.assign_task_to_klasse(klasse_id, int(task_id))
-        flash('Aufgabe für alle Schüler zugewiesen. ✅', 'success')
+        # Convert to int, handle empty string for subtask_id
+        subtask_id_int = int(subtask_id) if subtask_id and subtask_id.strip() else None
+        models.assign_task_to_klasse(klasse_id, int(task_id), subtask_id_int)
+        if subtask_id_int:
+            flash('Aufgabe und Teilaufgabe für alle Schüler zugewiesen. ✅', 'success')
+        else:
+            flash('Aufgabe für alle Schüler zugewiesen. ✅', 'success')
     return redirect(url_for('admin_klasse_detail', klasse_id=klasse_id))
 
 
@@ -300,7 +306,25 @@ def admin_schueler_detail(student_id):
     klassen = models.get_student_klassen(student_id)
     all_klassen = models.get_all_klassen()
     tasks = models.get_all_tasks()
-    return render_template('admin/schueler_detail.html', student=student, klassen=klassen, all_klassen=all_klassen, tasks=tasks)
+
+    # Get current tasks for each class
+    student_tasks = {}
+    for klasse in klassen:
+        task = models.get_student_task(student_id, klasse['id'])
+        if task:
+            # Get all subtasks and current subtask
+            subtasks = models.get_student_subtask_progress(task['id'])
+            task['subtasks'] = subtasks
+            current_subtask = models.get_current_subtask(task['id'])
+            task['current_subtask'] = current_subtask
+        student_tasks[klasse['id']] = task
+
+    return render_template('admin/schueler_detail.html',
+                           student=student,
+                           klassen=klassen,
+                           all_klassen=all_klassen,
+                           tasks=tasks,
+                           student_tasks=student_tasks)
 
 
 @app.route('/admin/schueler/<int:student_id>/loeschen', methods=['POST'])
@@ -343,9 +367,37 @@ def admin_schueler_verschieben(student_id):
 def admin_schueler_aufgabe_zuweisen(student_id):
     klasse_id = request.form['klasse_id']
     task_id = request.form['task_id']
+    subtask_id = request.form.get('subtask_id')
     if klasse_id and task_id:
-        models.assign_task_to_student(student_id, int(klasse_id), int(task_id))
-        flash('Aufgabe zugewiesen. ✅', 'success')
+        # Convert to int, handle empty string for subtask_id
+        subtask_id_int = int(subtask_id) if subtask_id and subtask_id.strip() else None
+        models.assign_task_to_student(student_id, int(klasse_id), int(task_id), subtask_id_int)
+        if subtask_id_int:
+            flash('Aufgabe und Teilaufgabe zugewiesen. ✅', 'success')
+        else:
+            flash('Aufgabe zugewiesen. ✅', 'success')
+    return redirect(url_for('admin_schueler_detail', student_id=student_id))
+
+
+@app.route('/admin/schueler/<int:student_id>/teilaufgabe-setzen', methods=['POST'])
+@admin_required
+def admin_schueler_teilaufgabe_setzen(student_id):
+    """Update the current subtask for a student's task."""
+    klasse_id = request.form['klasse_id']
+    subtask_id = request.form.get('subtask_id')
+
+    if klasse_id:
+        student_task = models.get_student_task(student_id, int(klasse_id))
+        if student_task:
+            # Convert to int, handle empty string for subtask_id
+            subtask_id_int = int(subtask_id) if subtask_id and subtask_id.strip() else None
+            models.set_current_subtask(student_task['id'], subtask_id_int)
+            if subtask_id_int:
+                flash('Aktuelle Teilaufgabe aktualisiert. ✅', 'success')
+            else:
+                flash('Teilaufgaben-Filter entfernt (alle Teilaufgaben sichtbar). ✅', 'success')
+        else:
+            flash('Schüler hat keine Aufgabe in dieser Klasse.', 'warning')
     return redirect(url_for('admin_schueler_detail', student_id=student_id))
 
 
@@ -480,13 +532,19 @@ def admin_aufgabe_loeschen(task_id):
     return redirect(url_for('admin_aufgaben'))
 
 
-@app.route('/admin/aufgabe/<int:task_id>/teilaufgaben', methods=['POST'])
+@app.route('/admin/aufgabe/<int:task_id>/teilaufgaben', methods=['GET', 'POST'])
 @admin_required
 def admin_aufgabe_teilaufgaben(task_id):
-    subtasks_list = request.form.getlist('subtasks[]')
-    models.update_subtasks(task_id, subtasks_list)
-    flash('Teilaufgaben aktualisiert.', 'success')
-    return redirect(url_for('admin_aufgabe_detail', task_id=task_id))
+    if request.method == 'GET':
+        # API endpoint: return subtasks as JSON
+        subtasks = models.get_subtasks(task_id)
+        return jsonify(subtasks)
+    else:
+        # POST: update subtasks
+        subtasks_list = request.form.getlist('subtasks[]')
+        models.update_subtasks(task_id, subtasks_list)
+        flash('Teilaufgaben aktualisiert.', 'success')
+        return redirect(url_for('admin_aufgabe_detail', task_id=task_id))
 
 
 @app.route('/admin/aufgabe/<int:task_id>/material-link', methods=['POST'])
@@ -997,13 +1055,32 @@ def student_klasse(klasse_id):
 
     task = models.get_student_task(student_id, klasse_id)
     subtasks = []
+    all_subtasks = []
+    completed_subtasks = []
+    current_subtask = None
     materials = []
     quiz_attempts = []
 
     if task:
-        subtasks = models.get_student_subtask_progress(task['id'])
+        all_subtasks = models.get_student_subtask_progress(task['id'])
         materials = models.get_materials(task['task_id'])
         quiz_attempts = models.get_quiz_attempts(task['id'])
+
+        # Filter subtasks based on current_subtask_id
+        if task.get('current_subtask_id'):
+            # Show only current subtask
+            current_subtask = models.get_current_subtask(task['id'])
+            if current_subtask:
+                # Find the current subtask in the full list to get completion status
+                for st in all_subtasks:
+                    if st['id'] == current_subtask['id']:
+                        subtasks = [st]
+                        break
+                # Get completed subtasks for display
+                completed_subtasks = [st for st in all_subtasks if st['erledigt']]
+        else:
+            # Show all subtasks (backward compatible)
+            subtasks = all_subtasks
 
     # Get lesson history
     unterricht = models.get_student_unterricht(student_id, klasse_id)
@@ -1012,6 +1089,9 @@ def student_klasse(klasse_id):
                            klasse=klasse,
                            task=task,
                            subtasks=subtasks,
+                           all_subtasks=all_subtasks,
+                           completed_subtasks=completed_subtasks,
+                           current_subtask=current_subtask,
                            materials=materials,
                            quiz_attempts=quiz_attempts,
                            unterricht=unterricht)
@@ -1372,6 +1452,7 @@ def init_app():
     os.makedirs(os.path.join(os.path.dirname(config.UPLOAD_FOLDER), 'tmp'), exist_ok=True)  # instance/tmp
     os.makedirs(os.path.dirname(config.DATABASE), exist_ok=True)  # data/
     models.init_db()
+    models.migrate_add_current_subtask()
 
     # Create default admin if not exists
     if models.create_admin('admin', 'admin'):

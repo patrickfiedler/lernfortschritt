@@ -196,10 +196,12 @@ def init_db():
                 task_id INTEGER NOT NULL,
                 abgeschlossen INTEGER NOT NULL DEFAULT 0,
                 manuell_abgeschlossen INTEGER NOT NULL DEFAULT 0,
+                current_subtask_id INTEGER,
                 UNIQUE(student_id, klasse_id),
                 FOREIGN KEY (student_id) REFERENCES student(id) ON DELETE CASCADE,
                 FOREIGN KEY (klasse_id) REFERENCES klasse(id) ON DELETE CASCADE,
-                FOREIGN KEY (task_id) REFERENCES task(id) ON DELETE CASCADE
+                FOREIGN KEY (task_id) REFERENCES task(id) ON DELETE CASCADE,
+                FOREIGN KEY (current_subtask_id) REFERENCES subtask(id) ON DELETE SET NULL
             );
 
             -- Student sub-task completion
@@ -384,6 +386,57 @@ def init_db():
             CREATE INDEX IF NOT EXISTS idx_saved_reports_student
             ON saved_reports(student_id, date_generated DESC);
         ''')
+
+
+def migrate_add_current_subtask():
+    """Migration: Add current_subtask_id column to student_task table if it doesn't exist."""
+    with db_session() as conn:
+        # Check if column already exists
+        cursor = conn.execute("PRAGMA table_info(student_task)")
+        columns = [row[1] for row in cursor.fetchall()]
+
+        if 'current_subtask_id' not in columns:
+            # Add the column
+            conn.execute("ALTER TABLE student_task ADD COLUMN current_subtask_id INTEGER")
+
+            # For existing student_task records, set current_subtask_id to the first incomplete subtask
+            # or the first subtask if all are complete or none exist
+            student_tasks = conn.execute("SELECT id, task_id FROM student_task").fetchall()
+
+            for st in student_tasks:
+                student_task_id = st['id']
+                task_id = st['task_id']
+
+                # Get all subtasks for this task, ordered by reihenfolge
+                subtasks = conn.execute(
+                    "SELECT id FROM subtask WHERE task_id = ? ORDER BY reihenfolge",
+                    (task_id,)
+                ).fetchall()
+
+                if not subtasks:
+                    # No subtasks, leave current_subtask_id as NULL
+                    continue
+
+                # Find first incomplete subtask
+                first_incomplete = None
+                for sub in subtasks:
+                    subtask_id = sub['id']
+                    completed = conn.execute(
+                        "SELECT erledigt FROM student_subtask WHERE student_task_id = ? AND subtask_id = ?",
+                        (student_task_id, subtask_id)
+                    ).fetchone()
+
+                    if not completed or not completed['erledigt']:
+                        first_incomplete = subtask_id
+                        break
+
+                # If all complete or none started, use first subtask
+                current_subtask = first_incomplete if first_incomplete else subtasks[0]['id']
+
+                conn.execute(
+                    "UPDATE student_task SET current_subtask_id = ? WHERE id = ?",
+                    (current_subtask, student_task_id)
+                )
 
 
 def create_admin(username, password):
@@ -977,28 +1030,57 @@ def delete_material(material_id):
 
 # ============ Student Task functions ============
 
-def assign_task_to_student(student_id, klasse_id, task_id):
-    """Assign a task to a student in a class."""
+def assign_task_to_student(student_id, klasse_id, task_id, subtask_id=None):
+    """Assign a task to a student in a class.
+
+    Args:
+        student_id: The student ID
+        klasse_id: The class ID
+        task_id: The task ID to assign
+        subtask_id: Optional specific subtask to set as current (default: first subtask)
+    """
     with db_session() as conn:
+        # Get first subtask if subtask_id not provided
+        if subtask_id is None:
+            first_subtask = conn.execute(
+                "SELECT id FROM subtask WHERE task_id = ? ORDER BY reihenfolge LIMIT 1",
+                (task_id,)
+            ).fetchone()
+            subtask_id = first_subtask['id'] if first_subtask else None
+
         # Use INSERT OR REPLACE to update existing assignment
         conn.execute('''
-            INSERT OR REPLACE INTO student_task (student_id, klasse_id, task_id, abgeschlossen, manuell_abgeschlossen)
-            VALUES (?, ?, ?, 0, 0)
-        ''', (student_id, klasse_id, task_id))
+            INSERT OR REPLACE INTO student_task (student_id, klasse_id, task_id, abgeschlossen, manuell_abgeschlossen, current_subtask_id)
+            VALUES (?, ?, ?, 0, 0, ?)
+        ''', (student_id, klasse_id, task_id, subtask_id))
 
 
-def assign_task_to_klasse(klasse_id, task_id):
-    """Assign a task to all students in a class."""
+def assign_task_to_klasse(klasse_id, task_id, subtask_id=None):
+    """Assign a task to all students in a class.
+
+    Args:
+        klasse_id: The class ID
+        task_id: The task ID to assign
+        subtask_id: Optional specific subtask to set as current for all students (default: first subtask)
+    """
     with db_session() as conn:
+        # Get first subtask if subtask_id not provided
+        if subtask_id is None:
+            first_subtask = conn.execute(
+                "SELECT id FROM subtask WHERE task_id = ? ORDER BY reihenfolge LIMIT 1",
+                (task_id,)
+            ).fetchone()
+            subtask_id = first_subtask['id'] if first_subtask else None
+
         students = conn.execute(
             "SELECT student_id FROM student_klasse WHERE klasse_id = ?",
             (klasse_id,)
         ).fetchall()
         for s in students:
             conn.execute('''
-                INSERT OR REPLACE INTO student_task (student_id, klasse_id, task_id, abgeschlossen, manuell_abgeschlossen)
-                VALUES (?, ?, ?, 0, 0)
-            ''', (s['student_id'], klasse_id, task_id))
+                INSERT OR REPLACE INTO student_task (student_id, klasse_id, task_id, abgeschlossen, manuell_abgeschlossen, current_subtask_id)
+                VALUES (?, ?, ?, 0, 0, ?)
+            ''', (s['student_id'], klasse_id, task_id, subtask_id))
 
 
 def get_student_task(student_id, klasse_id):
@@ -1034,6 +1116,98 @@ def toggle_student_subtask(student_task_id, subtask_id, erledigt):
             INSERT OR REPLACE INTO student_subtask (student_task_id, subtask_id, erledigt)
             VALUES (?, ?, ?)
         ''', (student_task_id, subtask_id, 1 if erledigt else 0))
+
+        # If marking as complete, advance to next subtask
+        if erledigt:
+            advance_to_next_subtask(student_task_id, subtask_id)
+
+
+def set_current_subtask(student_task_id, subtask_id):
+    """Set the current subtask for a student's task.
+
+    Args:
+        student_task_id: The student_task ID
+        subtask_id: The subtask ID to set as current (or None to show all)
+    """
+    with db_session() as conn:
+        conn.execute(
+            "UPDATE student_task SET current_subtask_id = ? WHERE id = ?",
+            (subtask_id, student_task_id)
+        )
+
+
+def advance_to_next_subtask(student_task_id, current_subtask_id):
+    """Advance to the next incomplete subtask after completing the current one.
+
+    Args:
+        student_task_id: The student_task ID
+        current_subtask_id: The subtask that was just completed
+    """
+    with db_session() as conn:
+        # Get the task_id and current order
+        st = conn.execute(
+            "SELECT task_id, current_subtask_id FROM student_task WHERE id = ?",
+            (student_task_id,)
+        ).fetchone()
+
+        if not st:
+            return
+
+        task_id = st['task_id']
+
+        # Get all subtasks ordered by reihenfolge
+        subtasks = conn.execute(
+            "SELECT id, reihenfolge FROM subtask WHERE task_id = ? ORDER BY reihenfolge",
+            (task_id,)
+        ).fetchall()
+
+        if not subtasks:
+            return
+
+        # Find next incomplete subtask
+        current_found = False
+        for sub in subtasks:
+            subtask_id = sub['id']
+
+            # Skip until we find the current subtask
+            if subtask_id == current_subtask_id:
+                current_found = True
+                continue
+
+            # After current, find first incomplete
+            if current_found:
+                completed = conn.execute(
+                    "SELECT erledigt FROM student_subtask WHERE student_task_id = ? AND subtask_id = ?",
+                    (student_task_id, subtask_id)
+                ).fetchone()
+
+                if not completed or not completed['erledigt']:
+                    # Found next incomplete subtask
+                    conn.execute(
+                        "UPDATE student_task SET current_subtask_id = ? WHERE id = ?",
+                        (subtask_id, student_task_id)
+                    )
+                    return
+
+        # If we get here, all remaining subtasks are complete
+        # Keep current_subtask_id pointing to the last one (or set to None to show all)
+        # For now, we'll leave it pointing to the current one
+
+
+def get_current_subtask(student_task_id):
+    """Get the current subtask for a student's task.
+
+    Returns:
+        dict with subtask info, or None if no current subtask set
+    """
+    with db_session() as conn:
+        row = conn.execute('''
+            SELECT sub.*
+            FROM student_task st
+            JOIN subtask sub ON st.current_subtask_id = sub.id
+            WHERE st.id = ?
+        ''', (student_task_id,)).fetchone()
+        return dict(row) if row else None
 
 
 def mark_task_complete(student_task_id, manual=False):

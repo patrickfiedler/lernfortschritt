@@ -75,23 +75,76 @@
 {% if klassen %}
 <div class="card mt-2">
     <div class="card-header">📝 Individuelle Aufgabe zuweisen</div>
-    <form method="POST" action="{{ url_for('admin_schueler_aufgabe_zuweisen', student_id=student.id) }}" class="flex gap-1 flex-center">
+    <form method="POST" action="{{ url_for('admin_schueler_aufgabe_zuweisen', student_id=student.id) }}" id="assign-student-task-form">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <label>Klasse:</label>
-        <select name="klasse_id" class="form-control" style="width: auto;" required>
-            {% for klasse in klassen %}
-            <option value="{{ klasse.id }}">{{ klasse.name }}</option>
-            {% endfor %}
-        </select>
-        <label>Aufgabe:</label>
-        <select name="task_id" class="form-control" style="flex: 1;" required>
-            <option value="">-- Aufgabe wählen --</option>
-            {% for task in tasks %}
-            <option value="{{ task.id }}">{{ task.fach }} ({{ task.stufe }}): {{ task.name }}</option>
-            {% endfor %}
-        </select>
-        <button type="submit" class="btn btn-primary">Zuweisen</button>
+        <div class="flex gap-1 flex-center mb-1">
+            <label>Klasse:</label>
+            <select name="klasse_id" class="form-control" style="width: auto;" required>
+                {% for klasse in klassen %}
+                <option value="{{ klasse.id }}">{{ klasse.name }}</option>
+                {% endfor %}
+            </select>
+            <label>Aufgabe:</label>
+            <select name="task_id" id="student-task-select" class="form-control" style="flex: 1;" required onchange="loadSubtasksForStudent(this.value)">
+                <option value="">-- Aufgabe wählen --</option>
+                {% for task in tasks %}
+                <option value="{{ task.id }}">{{ task.fach }} ({{ task.stufe }}): {{ task.name }}</option>
+                {% endfor %}
+            </select>
+            <button type="submit" class="btn btn-primary">Zuweisen</button>
+        </div>
+        <div id="student-subtask-selector" style="display: none;">
+            <label class="text-muted">Teilaufgabe (optional):</label>
+            <select name="subtask_id" id="student-subtask-select" class="form-control">
+                <option value="">Alle Teilaufgaben zeigen</option>
+            </select>
+            <small class="text-muted">Wähle eine spezifische Teilaufgabe, um nur diese für den Schüler zu zeigen.</small>
+        </div>
     </form>
+</div>
+
+<!-- Manage Current Subtask -->
+<div class="card mt-2">
+    <div class="card-header">🎯 Aktuelle Teilaufgabe verwalten</div>
+    {% for klasse in klassen %}
+    {% set task = student_tasks.get(klasse.id) %}
+    {% if task and task.subtasks %}
+    <div class="mb-2" style="padding: 1rem; background: #f9fafb; border-radius: 0.375rem;">
+        <div class="flex flex-between flex-center mb-1">
+            <strong>{{ klasse.name }}: {{ task.name }}</strong>
+            {% if task.current_subtask %}
+            <span class="badge badge-primary">Filter aktiv</span>
+            {% else %}
+            <span class="badge badge-secondary">Alle sichtbar</span>
+            {% endif %}
+        </div>
+        <form method="POST" action="{{ url_for('admin_schueler_teilaufgabe_setzen', student_id=student.id) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="klasse_id" value="{{ klasse.id }}">
+            <div class="flex gap-1">
+                <select name="subtask_id" class="form-control" style="flex: 1;">
+                    <option value="">Alle Teilaufgaben zeigen</option>
+                    {% for sub in task.subtasks %}
+                    <option value="{{ sub.id }}" {% if task.current_subtask and task.current_subtask.id == sub.id %}selected{% endif %}>
+                        {{ loop.index }}. {{ sub.beschreibung[:60] }}{% if sub.beschreibung|length > 60 %}...{% endif %}
+                        {% if sub.erledigt %}✓{% endif %}
+                    </option>
+                    {% endfor %}
+                </select>
+                <button type="submit" class="btn btn-secondary">Aktualisieren</button>
+            </div>
+            {% if task.current_subtask %}
+            <small class="text-muted">Aktuell: Teilaufgabe {{ loop.index }} sichtbar</small>
+            {% else %}
+            <small class="text-muted">Alle {{ task.subtasks|length }} Teilaufgaben sichtbar</small>
+            {% endif %}
+        </form>
+    </div>
+    {% endif %}
+    {% endfor %}
+    {% if not klassen or not any(student_tasks.get(k.id) for k in klassen) %}
+    <p class="text-muted">Keine aktiven Aufgaben mit Teilaufgaben.</p>
+    {% endif %}
 </div>
 
 <!-- Manual Task Completion -->
@@ -107,4 +160,45 @@
     </div>
 </div>
 {% endif %}
+{% endblock %}
+
+{% block scripts %}
+function loadSubtasksForStudent(taskId) {
+    const subtaskSelector = document.getElementById('student-subtask-selector');
+    const subtaskSelect = document.getElementById('student-subtask-select');
+
+    if (!taskId) {
+        subtaskSelector.style.display = 'none';
+        return;
+    }
+
+    // Fetch subtasks for this task
+    const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
+    fetch(`/admin/aufgabe/${taskId}/teilaufgaben`, {
+        headers: {
+            'X-CSRFToken': csrfToken
+        }
+    })
+    .then(r => r.json())
+    .then(subtasks => {
+        // Clear existing options
+        subtaskSelect.innerHTML = '<option value="">Alle Teilaufgaben zeigen</option>';
+
+        if (subtasks.length > 0) {
+            subtasks.forEach((sub, index) => {
+                const option = document.createElement('option');
+                option.value = sub.id;
+                option.textContent = `${index + 1}. ${sub.beschreibung.substring(0, 60)}${sub.beschreibung.length > 60 ? '...' : ''}`;
+                subtaskSelect.appendChild(option);
+            });
+            subtaskSelector.style.display = 'block';
+        } else {
+            subtaskSelector.style.display = 'none';
+        }
+    })
+    .catch(err => {
+        console.error('Failed to load subtasks:', err);
+        subtaskSelector.style.display = 'none';
+    });
+}
 {% endblock %}
