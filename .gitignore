@@ -8,6 +8,12 @@ task_definitions/
 task_plan.md
 notes.md
 
+# Flask instance folder
+instance/
+
+# Test scripts
+test_*.py
+
 # Python
 __pycache__/
 *.pyc

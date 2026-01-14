@@ -4,6 +4,8 @@
 
 - ~~502 error when I try to upload a file~~ (Fixed - was database permissions issue)
 - ~~error logging functionality~~ (Complete - Phase 4)
+- Remove "Selbstbewertung pro Unterricht" from student page
+- Code Review
 
 ## Features
 
@@ -17,9 +19,11 @@
 
 - ~~student view: show only the current (or the first) subtask of the active task~~ (Complete - see subtask_implementation_summary.md)
 - ~~admin view: assign particular subtasks to classes and to students~~ (Complete - see subtask_implementation_summary.md)
+- Add #teilaufgabe anchor to student page. If the page reloads after a subtask has been completed, jump to this anchor directly.
 - (low priority, optional) student view: show visual learning map of open tasks and how they connect to each other; for the moment only for informational purposes
 - admin view: when batch-importing students, add the url of the app to each line, along with username and password (either hardcode lernen.mrfiedler.de, or maybe read from configuration or HTML headers?)
 - admin view: allow individual students to see all available tasks, but default to the current behaviour (students see only the active task)
+- research a better way and place to implement student self-evaluation (was: student page, at bottom)
 
 ## Bugs
 

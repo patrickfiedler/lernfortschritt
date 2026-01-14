@@ -266,23 +266,21 @@ function toggleSubtask(studentTaskId, subtaskId, checked) {
         },
         body: JSON.stringify({erledigt: checked})
     }).then(r => r.json()).then(data => {
-        // Update UI
-        const item = document.querySelector(`[data-subtask-id="${subtaskId}"]`);
-        if (checked) {
-            item.classList.add('completed');
-        } else {
-            item.classList.remove('completed');
+        // If marking as complete or task complete, reload immediately to show new state
+        if (data.task_complete || checked) {
+            location.href = location.href;
+            return;
         }
+
+        // Update UI for unchecking only (no reload needed)
+        const item = document.querySelector(`[data-subtask-id="${subtaskId}"]`);
+        item.classList.remove('completed');
 
         // Update progress
         const completed = document.querySelectorAll('.subtask-card.completed').length;
         const total = document.querySelectorAll('.subtask-card').length;
         document.getElementById('progress-text').textContent = `${completed}/${total}`;
         document.getElementById('progress-bar').style.width = `${completed/total*100}%`;
-
-        if (data.task_complete) {
-            location.reload();
-        }
     });
 }
 
