@@ -41,7 +41,7 @@
 </div>
 
 <!-- Subtasks -->
-<div class="card mt-2">
+<div id="teilaufgabe" class="card mt-2">
     <div class="card-header flex flex-between">
         <span>✅ Teilaufgaben</span>
         {% if all_subtasks %}
@@ -174,85 +174,6 @@
     <p>Keine Aufgabe zugewiesen.</p>
 </div>
 {% endif %}
-
-<!-- Self Evaluation -->
-{% if unterricht %}
-<div class="card mt-2">
-    <div class="card-header">📊 Selbstbewertung pro Unterricht</div>
-    <table class="table">
-        <thead>
-            <tr>
-                <th>Datum</th>
-                <th>Selbstständigkeit</th>
-                <th>Respekt</th>
-                <th>Aktion</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for u in unterricht %}
-            <tr>
-                <td>{{ u.datum }}</td>
-                <td>
-                    {% if u.selbst_selbststaendigkeit %}
-                    <span class="rating-btn active-{{ u.selbst_selbststaendigkeit }}" style="pointer-events: none;">{{ u.selbst_selbststaendigkeit }}</span>
-                    {% else %}
-                    <span class="text-muted">-</span>
-                    {% endif %}
-                </td>
-                <td>
-                    {% if u.selbst_respekt %}
-                    <span class="rating-btn active-{{ u.selbst_respekt }}" style="pointer-events: none;">{{ u.selbst_respekt }}</span>
-                    {% else %}
-                    <span class="text-muted">-</span>
-                    {% endif %}
-                </td>
-                <td>
-                    {% if not u.selbst_selbststaendigkeit %}
-                    <button class="btn btn-sm btn-primary" onclick="showEvalForm({{ u.unterricht_id }})">Bewerten</button>
-                    {% else %}
-                    <span class="text-muted">✓</span>
-                    {% endif %}
-                </td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
-</div>
-
-<!-- Self Evaluation Modal/Form -->
-<div id="eval-modal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 1000;">
-    <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 2rem; border-radius: 0.5rem; max-width: 400px; width: 90%;">
-        <h3 class="mb-2">📊 Selbstbewertung</h3>
-        <form id="eval-form" method="POST">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <div class="form-group">
-                <label><strong>Selbstständigkeit</strong></label>
-                <p class="text-muted">Wie gut hast du selbstständig gearbeitet?</p>
-                <div class="rating-group">
-                    {% for i in [1, 2, 3] %}
-                    <button type="button" class="rating-btn" onclick="selectRating(this, 'selbst_selbststaendigkeit', {{ i }})">{{ i }}</button>
-                    {% endfor %}
-                </div>
-                <input type="hidden" name="selbst_selbststaendigkeit" id="selbst_selbststaendigkeit" value="2">
-            </div>
-            <div class="form-group">
-                <label><strong>Respekt</strong></label>
-                <p class="text-muted">Wie respektvoll warst du gegenüber anderen?</p>
-                <div class="rating-group">
-                    {% for i in [1, 2, 3] %}
-                    <button type="button" class="rating-btn" onclick="selectRating(this, 'selbst_respekt', {{ i }})">{{ i }}</button>
-                    {% endfor %}
-                </div>
-                <input type="hidden" name="selbst_respekt" id="selbst_respekt" value="2">
-            </div>
-            <div class="flex gap-1 mt-2">
-                <button type="submit" class="btn btn-primary">Speichern</button>
-                <button type="button" class="btn btn-secondary" onclick="hideEvalForm()">Abbrechen</button>
-            </div>
-        </form>
-    </div>
-</div>
-{% endif %}
 {% endblock %}
 
 {% block scripts %}
@@ -266,9 +187,10 @@ function toggleSubtask(studentTaskId, subtaskId, checked) {
         },
         body: JSON.stringify({erledigt: checked})
     }).then(r => r.json()).then(data => {
-        // If marking as complete or task complete, reload immediately to show new state
+        // If marking as complete or task complete, reload and jump to subtasks
         if (data.task_complete || checked) {
-            location.href = location.href;
+            location.href = location.pathname + '#teilaufgabe';
+            location.reload();
             return;
         }
 
@@ -284,21 +206,15 @@ function toggleSubtask(studentTaskId, subtaskId, checked) {
     });
 }
 
-function showEvalForm(unterrichtId) {
-    document.getElementById('eval-form').action = `/schueler/unterricht/${unterrichtId}/selbstbewertung`;
-    document.getElementById('eval-modal').style.display = 'block';
-}
-
-function hideEvalForm() {
-    document.getElementById('eval-modal').style.display = 'none';
-}
-
-function selectRating(btn, field, value) {
-    const group = btn.parentElement;
-    group.querySelectorAll('.rating-btn').forEach(b => {
-        b.classList.remove('active-1', 'active-2', 'active-3');
-    });
-    btn.classList.add(`active-${value}`);
-    document.getElementById(field).value = value;
-}
+// Smooth scroll to #teilaufgabe on page load if hash is present
+window.addEventListener('DOMContentLoaded', function() {
+    if (window.location.hash === '#teilaufgabe') {
+        const element = document.getElementById('teilaufgabe');
+        if (element) {
+            setTimeout(function() {
+                element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }, 100);
+        }
+    }
+});
 {% endblock %}
