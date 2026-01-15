@@ -767,13 +767,31 @@ def get_students_in_klasse(klasse_id):
 
 def get_student(student_id):
     """Get a student by ID."""
+    # Cache for 2 minutes if cache is available (student data rarely changes)
+    cache_key = f'student_{student_id}'
+    if cache:
+        cached = cache.get(cache_key)
+        if cached is not None:
+            return cached
+
     with db_session() as conn:
         row = conn.execute("SELECT * FROM student WHERE id = ?", (student_id,)).fetchone()
-        return dict(row) if row else None
+        result = dict(row) if row else None
+
+    if cache and result:
+        cache.set(cache_key, result, timeout=120)
+    return result
 
 
 def get_student_klassen(student_id):
     """Get all classes a student belongs to."""
+    # Cache for 2 minutes if cache is available (class membership rarely changes)
+    cache_key = f'student_klassen_{student_id}'
+    if cache:
+        cached = cache.get(cache_key)
+        if cached is not None:
+            return cached
+
     with db_session() as conn:
         rows = conn.execute('''
             SELECT k.* FROM klasse k
@@ -781,7 +799,11 @@ def get_student_klassen(student_id):
             WHERE sk.student_id = ?
             ORDER BY k.name
         ''', (student_id,)).fetchall()
-        return [dict(r) for r in rows]
+        result = [dict(r) for r in rows]
+
+    if cache:
+        cache.set(cache_key, result, timeout=120)
+    return result
 
 
 def is_student_in_klasse(student_id, klasse_id):
@@ -1162,6 +1184,13 @@ def get_student_task(student_id, klasse_id):
 
 def get_student_subtask_progress(student_task_id):
     """Get subtask completion status for a student's task."""
+    # Cache for 30 seconds if cache is available (changes when student marks subtasks complete)
+    cache_key = f'student_subtask_progress_{student_task_id}'
+    if cache:
+        cached = cache.get(cache_key)
+        if cached is not None:
+            return cached
+
     with db_session() as conn:
         rows = conn.execute('''
             SELECT sub.*, COALESCE(ss.erledigt, 0) as erledigt
@@ -1171,7 +1200,11 @@ def get_student_subtask_progress(student_task_id):
             WHERE st.id = ?
             ORDER BY sub.reihenfolge
         ''', (student_task_id, student_task_id)).fetchall()
-        return [dict(r) for r in rows]
+        result = [dict(r) for r in rows]
+
+    if cache:
+        cache.set(cache_key, result, timeout=30)
+    return result
 
 
 def toggle_student_subtask(student_task_id, subtask_id, erledigt):
