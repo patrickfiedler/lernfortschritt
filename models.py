@@ -1504,7 +1504,10 @@ def clear_all_error_logs():
 # ============ Analytics & Activity Logging functions ============
 
 def log_analytics_event(event_type, user_id=None, user_type=None, metadata=None):
-    """Log an analytics event.
+    """Log an analytics event asynchronously.
+
+    Events are queued and written to the database by a background thread.
+    This prevents blocking requests on slow disk I/O.
 
     Args:
         event_type: Type of event ('login', 'page_view', 'task_complete', etc.)
@@ -1512,16 +1515,13 @@ def log_analytics_event(event_type, user_id=None, user_type=None, metadata=None)
         user_type: 'admin' or 'student'
         metadata: Dictionary of additional data (will be stored as JSON)
     """
-    try:
-        metadata_json = json.dumps(metadata) if metadata else None
-        with db_session() as conn:
-            conn.execute('''
-                INSERT INTO analytics_events (event_type, user_id, user_type, metadata)
-                VALUES (?, ?, ?, ?)
-            ''', (event_type, user_id, user_type, metadata_json))
-    except Exception as e:
-        # If logging fails, print to stderr but don't crash
-        print(f"ERROR: Failed to log analytics event: {e}", file=sys.stderr)
+    from analytics_queue import enqueue_event
+
+    # Convert metadata to JSON if it's a dict
+    metadata_json = json.dumps(metadata) if metadata else None
+
+    # Enqueue event (non-blocking)
+    enqueue_event(event_type, user_id, user_type, metadata_json)
 
 
 def get_analytics_events(limit=100, offset=0, event_type=None, user_id=None, user_type=None, date_from=None, date_to=None):

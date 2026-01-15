@@ -932,6 +932,11 @@ def admin_unterricht_datum(klasse_id, datum):
     unterricht_id = models.create_or_get_unterricht(klasse_id, datum)
 
     with models.db_session() as conn:
+        # Get lesson comment
+        unterricht = conn.execute('SELECT kommentar FROM unterricht WHERE id = ?', (unterricht_id,)).fetchone()
+        lesson_comment = unterricht['kommentar'] if unterricht else None
+
+        # Get students with ratings
         students = conn.execute('''
             SELECT us.*, s.nachname, s.vorname
             FROM unterricht_student us
@@ -941,7 +946,8 @@ def admin_unterricht_datum(klasse_id, datum):
         ''', (unterricht_id,)).fetchall()
         students = [dict(s) for s in students]
 
-    return render_template('admin/unterricht.html', klasse=klasse, datum=datum, unterricht_id=unterricht_id, students=students)
+    return render_template('admin/unterricht.html', klasse=klasse, datum=datum, unterricht_id=unterricht_id,
+                           students=students, lesson_comment=lesson_comment)
 
 
 @app.route('/admin/klasse/<int:klasse_id>/unterricht/<datum>/next')
@@ -965,15 +971,29 @@ def admin_unterricht_prev(klasse_id, datum):
 def admin_unterricht_bewertung(unterricht_id):
     student_id = request.form['student_id']
     anwesend = 1 if request.form.get('anwesend') else 0
-    admin_selbst = int(request.form.get('admin_selbststaendigkeit', 2))
-    admin_respekt = int(request.form.get('admin_respekt', 2))
-    admin_fortschritt = int(request.form.get('admin_fortschritt', 2))
+    # New rating system: '-', 'ok', '+'
+    admin_selbst = request.form.get('admin_selbststaendigkeit', 'ok')
+    admin_respekt = request.form.get('admin_respekt', 'ok')
+    admin_fortschritt = request.form.get('admin_fortschritt', 'ok')
     admin_kommentar = request.form.get('admin_kommentar', '')
 
     models.update_unterricht_student(
         unterricht_id, int(student_id),
         anwesend, admin_selbst, admin_respekt, admin_fortschritt, admin_kommentar
     )
+
+    return jsonify({'status': 'ok'})
+
+
+@app.route('/admin/unterricht/<int:unterricht_id>/kommentar', methods=['POST'])
+@admin_required
+def admin_unterricht_kommentar(unterricht_id):
+    """Save lesson-wide comment"""
+    kommentar = request.form.get('kommentar', '')
+
+    with models.db_session() as conn:
+        conn.execute('UPDATE unterricht SET kommentar = ? WHERE id = ?', (kommentar, unterricht_id))
+        conn.commit()
 
     return jsonify({'status': 'ok'})
 
@@ -1453,6 +1473,11 @@ def init_app():
     os.makedirs(os.path.dirname(config.DATABASE), exist_ok=True)  # data/
     models.init_db()
     models.migrate_add_current_subtask()
+
+    # Start async analytics worker thread
+    from analytics_queue import start_worker
+    start_worker()
+    print("Analytics worker thread started")
 
     # Create default admin if not exists
     if models.create_admin('admin', 'admin'):
