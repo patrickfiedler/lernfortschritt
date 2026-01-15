@@ -25,7 +25,7 @@ if __name__ == '__main__':
         app,
         host='0.0.0.0',
         port=8080,
-        threads=4,                    # Number of worker threads
+        threads=8,                    # Number of worker threads (increased from 4)
         channel_timeout=120,          # Timeout for connections (2 minutes)
         recv_bytes=65536,             # 64KB receive buffer (for uploads)
         send_bytes=65536,             # 64KB send buffer

@@ -7,6 +7,9 @@ from datetime import datetime, timedelta
 from werkzeug.security import generate_password_hash, check_password_hash
 import config
 
+# Cache instance (set by app.py after initialization)
+cache = None
+
 # SQLCipher support: Use encrypted database if SQLCIPHER_KEY is set
 SQLCIPHER_KEY = os.environ.get('SQLCIPHER_KEY')
 USE_SQLCIPHER = False
@@ -524,9 +527,19 @@ def verify_student(username, password):
 
 def get_all_klassen():
     """Get all classes."""
+    # Cache for 5 minutes if cache is available
+    if cache:
+        cached = cache.get('all_klassen')
+        if cached is not None:
+            return cached
+
     with db_session() as conn:
         rows = conn.execute("SELECT * FROM klasse ORDER BY name").fetchall()
-        return [dict(r) for r in rows]
+        result = [dict(r) for r in rows]
+
+    if cache:
+        cache.set('all_klassen', result, timeout=300)
+    return result
 
 
 def create_klasse(name):
@@ -544,9 +557,20 @@ def delete_klasse(klasse_id):
 
 def get_klasse(klasse_id):
     """Get a class by ID."""
+    # Cache for 5 minutes if cache is available
+    cache_key = f'klasse_{klasse_id}'
+    if cache:
+        cached = cache.get(cache_key)
+        if cached is not None:
+            return cached
+
     with db_session() as conn:
         row = conn.execute("SELECT * FROM klasse WHERE id = ?", (klasse_id,)).fetchone()
-        return dict(row) if row else None
+        result = dict(row) if row else None
+
+    if cache and result:
+        cache.set(cache_key, result, timeout=300)
+    return result
 
 
 # ============ Class Schedule functions ============
@@ -717,6 +741,13 @@ def reset_student_password(student_id, new_password):
 
 def get_students_in_klasse(klasse_id):
     """Get all students in a class."""
+    # Cache for 2 minutes if cache is available (medium volatility - students added/removed occasionally)
+    cache_key = f'students_klasse_{klasse_id}'
+    if cache:
+        cached = cache.get(cache_key)
+        if cached is not None:
+            return cached
+
     with db_session() as conn:
         rows = conn.execute('''
             SELECT s.*, st.task_id, t.name as task_name, st.abgeschlossen, st.manuell_abgeschlossen
@@ -727,7 +758,11 @@ def get_students_in_klasse(klasse_id):
             WHERE sk.klasse_id = ?
             ORDER BY s.nachname, s.vorname
         ''', (klasse_id, klasse_id)).fetchall()
-        return [dict(r) for r in rows]
+        result = [dict(r) for r in rows]
+
+    if cache:
+        cache.set(cache_key, result, timeout=120)
+    return result
 
 
 def get_student(student_id):
@@ -773,12 +808,22 @@ def is_student_task_owner(student_id, student_task_id):
 
 def get_all_tasks():
     """Get all tasks."""
+    # Cache for 5 minutes if cache is available (stable data)
+    if cache:
+        cached = cache.get('all_tasks')
+        if cached is not None:
+            return cached
+
     with db_session() as conn:
         rows = conn.execute('''
             SELECT * FROM task
             ORDER BY fach, stufe, number, name
         ''').fetchall()
-        return [dict(r) for r in rows]
+        result = [dict(r) for r in rows]
+
+    if cache:
+        cache.set('all_tasks', result, timeout=300)
+    return result
 
 
 def get_task(task_id):
@@ -1094,6 +1139,13 @@ def assign_task_to_klasse(klasse_id, task_id, subtask_id=None):
 
 def get_student_task(student_id, klasse_id):
     """Get student's current task for a class."""
+    # Cache for 1 minute if cache is available (high volatility - tasks assigned/completed frequently)
+    cache_key = f'student_task_{student_id}_{klasse_id}'
+    if cache:
+        cached = cache.get(cache_key)
+        if cached is not None:
+            return cached
+
     with db_session() as conn:
         row = conn.execute('''
             SELECT st.*, t.name, t.beschreibung, t.lernziel, t.fach, t.stufe, t.kategorie, t.quiz_json
@@ -1101,7 +1153,11 @@ def get_student_task(student_id, klasse_id):
             JOIN task t ON st.task_id = t.id
             WHERE st.student_id = ? AND st.klasse_id = ?
         ''', (student_id, klasse_id)).fetchone()
-        return dict(row) if row else None
+        result = dict(row) if row else None
+
+    if cache and result:
+        cache.set(cache_key, result, timeout=60)
+    return result
 
 
 def get_student_subtask_progress(student_task_id):

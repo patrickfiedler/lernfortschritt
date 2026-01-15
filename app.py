@@ -5,6 +5,8 @@ from functools import wraps
 from datetime import date, datetime
 from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify, send_from_directory, abort, Response
 from flask_wtf.csrf import CSRFProtect
+from flask_caching import Cache
+from flask_compress import Compress
 from werkzeug.utils import secure_filename
 from markupsafe import Markup
 import markdown as md
@@ -27,6 +29,18 @@ app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'  # CSRF protection
 
 # CSRF protection
 csrf = CSRFProtect(app)
+
+# Caching configuration
+cache = Cache(app, config={
+    'CACHE_TYPE': 'SimpleCache',
+    'CACHE_DEFAULT_TIMEOUT': 300  # 5 minutes default
+})
+
+# Make cache available to models module
+models.cache = cache
+
+# Gzip compression for all responses
+compress = Compress(app)
 
 
 # ============ Template Filters ============
@@ -1415,6 +1429,25 @@ def handle_exception(error):
 
 
 # ============ Analytics Middleware ============
+
+@app.after_request
+def add_cache_headers(response):
+    """Add HTTP caching headers for static assets."""
+    # Cache static assets (CSS, JS, images) for 1 week
+    if request.path.startswith('/static/'):
+        # Uploaded files should have shorter cache (may be updated)
+        if '/uploads/' in request.path:
+            response.headers['Cache-Control'] = 'public, max-age=3600'  # 1 hour
+        else:
+            # CSS/JS files can be cached longer
+            response.headers['Cache-Control'] = 'public, max-age=604800'  # 1 week
+    else:
+        # Disable caching for dynamic pages
+        response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+        response.headers['Pragma'] = 'no-cache'
+        response.headers['Expires'] = '0'
+    return response
+
 
 @app.before_request
 def log_analytics():
