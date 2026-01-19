@@ -25,35 +25,35 @@
 {% set total_count = students|length %}
 {% if saved_count == 0 %}
     {% set table_state = 'no-data' %}
-    {% set state_message = '⚠️ Keine Daten für diesen Tag gespeichert. Standard-Werte (2) werden angezeigt.' %}
-    {% set state_class = 'alert-danger-light' %}
+    {% set state_message = '📝 Neue Unterrichtsstunde - Standardwerte werden angezeigt (alle anwesend, Bewertung "ok")' %}
+    {% set state_class = 'alert-info-light' %}
 {% elif saved_count < total_count %}
     {% set table_state = 'partial' %}
-    {% set state_message = '⏳ Es gibt nicht gespeicherte Änderungen. Daten werden automatisch gespeichert.' %}
+    {% set state_message = '⚠️ Es gibt nicht gespeicherte Änderungen' %}
     {% set state_class = 'alert-warning-light' %}
 {% else %}
     {% set table_state = 'complete' %}
-    {% set state_message = '✓ Alle Daten für diesen Tag gespeichert.' %}
+    {% set state_message = '✅ Alle Daten für diesen Tag gespeichert' %}
     {% set state_class = 'alert-success-light' %}
 {% endif %}
 
 <div class="card">
     <div class="card-header">👥 Schülerbewertung für {{ datum }}</div>
-    <div class="{{ state_class }}">{{ state_message }}</div>
+    <div class="{{ state_class }}" id="status-message">{{ state_message }}</div>
     <table class="table unterricht-table unterricht-{{ table_state }}">
         <thead>
             <tr>
                 <th>Name</th>
                 <th style="width: 80px;">Anwesend</th>
-                <th style="width: 120px;">Selbstständigkeit</th>
-                <th style="width: 120px;">Respekt</th>
-                <th style="width: 120px;">Fortschritt</th>
+                <th style="width: 150px;">Selbstständigkeit</th>
+                <th style="width: 150px;">Respekt</th>
+                <th style="width: 150px;">Fortschritt</th>
                 <th>Kommentar</th>
             </tr>
         </thead>
         <tbody>
             {% for student in students %}
-            <tr data-student-id="{{ student.student_id }}">
+            <tr data-student-id="{{ student.student_id }}" data-saved="{{ student.has_been_saved }}">
                 <td><strong>{{ student.nachname }}, {{ student.vorname }}</strong></td>
                 <td>
                     <label class="attendance-toggle" data-student-id="{{ student.student_id }}">
@@ -65,40 +65,53 @@
                     </label>
                 </td>
                 <td>
-                    <div class="rating-group">
-                        {% for i in [1, 2, 3] %}
-                        <button type="button" class="rating-btn {% if student.admin_selbststaendigkeit == i %}active-{{ i }}{% if not student.has_been_saved %} unsaved{% endif %}{% endif %}"
-                                onclick="setRating(this, {{ student.student_id }}, 'admin_selbststaendigkeit', {{ i }})">{{ i }}</button>
+                    <div class="rating-group-new">
+                        {% for val in ['-', 'ok', '+'] %}
+                        <button type="button" class="rating-btn-new rating-{{ val }} {% if student.admin_selbststaendigkeit == val %}active{% endif %}"
+                                onclick="setRating(this, {{ student.student_id }}, 'admin_selbststaendigkeit', '{{ val }}')">{{ val }}</button>
                         {% endfor %}
                     </div>
                 </td>
                 <td>
-                    <div class="rating-group">
-                        {% for i in [1, 2, 3] %}
-                        <button type="button" class="rating-btn {% if student.admin_respekt == i %}active-{{ i }}{% if not student.has_been_saved %} unsaved{% endif %}{% endif %}"
-                                onclick="setRating(this, {{ student.student_id }}, 'admin_respekt', {{ i }})">{{ i }}</button>
+                    <div class="rating-group-new">
+                        {% for val in ['-', 'ok', '+'] %}
+                        <button type="button" class="rating-btn-new rating-{{ val }} {% if student.admin_respekt == val %}active{% endif %}"
+                                onclick="setRating(this, {{ student.student_id }}, 'admin_respekt', '{{ val }}')">{{ val }}</button>
                         {% endfor %}
                     </div>
                 </td>
                 <td>
-                    <div class="rating-group">
-                        {% for i in [1, 2, 3] %}
-                        <button type="button" class="rating-btn {% if student.admin_fortschritt == i %}active-{{ i }}{% if not student.has_been_saved %} unsaved{% endif %}{% endif %}"
-                                onclick="setRating(this, {{ student.student_id }}, 'admin_fortschritt', {{ i }})">{{ i }}</button>
+                    <div class="rating-group-new">
+                        {% for val in ['-', 'ok', '+'] %}
+                        <button type="button" class="rating-btn-new rating-{{ val }} {% if student.admin_fortschritt == val %}active{% endif %}"
+                                onclick="setRating(this, {{ student.student_id }}, 'admin_fortschritt', '{{ val }}')">{{ val }}</button>
                         {% endfor %}
                     </div>
                 </td>
                 <td>
-                    <input type="text" class="form-control" value="{{ student.admin_kommentar or '' }}"
-                           onchange="updateComment(this, {{ student.student_id }})"
-                           placeholder="Kommentar...">
+                    <div class="flex gap-05">
+                        <select class="form-control" style="width: auto; min-width: 100px;" onchange="insertPredefinedComment(this, {{ student.student_id }})">
+                            <option value="">Schnelltext...</option>
+                            <option value="+ sehr konzentriert">+ sehr konzentriert</option>
+                            <option value="+ fleißig">+ fleißig</option>
+                            <option value="- laut">- laut</option>
+                            <option value="+ sehr selbstständig">+ sehr selbstständig</option>
+                            <option value="- nicht selbstständig">- nicht selbstständig</option>
+                            <option value="+ hilft anderen">+ hilft anderen</option>
+                            <option value="- stört andere">- stört andere</option>
+                        </select>
+                        <input type="text" class="form-control" value="{{ student.admin_kommentar or '' }}"
+                               onchange="updateComment(this, {{ student.student_id }})"
+                               placeholder="Kommentar..."
+                               data-student-id="{{ student.student_id }}">
+                    </div>
                 </td>
             </tr>
             {% endfor %}
         </tbody>
     </table>
     <div class="flex gap-1 flex-between flex-center" style="padding: 1rem; background: var(--gray-50); border-top: 1px solid var(--gray-200);">
-        <span id="unsaved-count" style="display: none; color: var(--warning); font-weight: bold;"></span>
+        <span id="unsaved-count"></span>
         <button id="save-btn" class="btn btn-primary" onclick="saveAll()" disabled>💾 Speichern</button>
     </div>
 </div>
@@ -106,10 +119,15 @@
 <div class="card mt-2">
     <div class="card-header">📊 Legende</div>
     <div class="flex gap-2">
-        <div><span class="rating-btn active-1" style="pointer-events: none;">1</span> = Verbesserungsbedarf</div>
-        <div><span class="rating-btn active-2" style="pointer-events: none;">2</span> = Gut (Standard)</div>
-        <div><span class="rating-btn active-3" style="pointer-events: none;">3</span> = Sehr gut</div>
+        <div><span class="rating-btn-new rating-minus" style="pointer-events: none;">-</span> = Verbesserungsbedarf</div>
+        <div><span class="rating-btn-new rating-ok active" style="pointer-events: none;">ok</span> = Gut (Standard)</div>
+        <div><span class="rating-btn-new rating-plus" style="pointer-events: none;">+</span> = Sehr gut</div>
     </div>
+</div>
+
+<div class="card mt-2">
+    <div class="card-header">💬 Kommentar zur gesamten Unterrichtsstunde</div>
+    <textarea id="lesson-comment" class="form-control" rows="3" placeholder="Notizen zur gesamten Stunde..." onchange="markLessonCommentChanged()">{{ lesson_comment or '' }}</textarea>
 </div>
 {% else %}
 <div class="card text-center text-muted">
@@ -118,26 +136,155 @@
 {% endif %}
 {% endblock %}
 
+{% block styles %}
+<style>
+/* New rating button styles */
+.rating-group-new {
+    display: flex;
+    gap: 0.25rem;
+}
+
+.rating-btn-new {
+    padding: 0.4rem 0.8rem;
+    border: 2px solid transparent;
+    border-radius: 0.375rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-size: 1rem;
+}
+
+.rating-btn-new:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+/* Color scheme: red, yellow, green */
+.rating-btn-new.rating-minus {
+    background: #fef2f2;
+    color: #dc2626;
+    border-color: #fecaca;
+}
+
+.rating-btn-new.rating-minus.active {
+    background: #dc2626;
+    color: white;
+    border-color: #dc2626;
+}
+
+.rating-btn-new.rating-ok {
+    background: #fefce8;
+    color: #ca8a04;
+    border-color: #fef08a;
+}
+
+.rating-btn-new.rating-ok.active {
+    background: #ca8a04;
+    color: white;
+    border-color: #ca8a04;
+}
+
+.rating-btn-new.rating-plus {
+    background: #f0fdf4;
+    color: #16a34a;
+    border-color: #bbf7d0;
+}
+
+.rating-btn-new.rating-plus.active {
+    background: #16a34a;
+    color: white;
+    border-color: #16a34a;
+}
+
+/* Unsaved row indicator */
+tr.unsaved-row {
+    background: #fffbeb !important;
+    box-shadow: inset 4px 0 0 #f59e0b;
+}
+
+tr.unsaved-row td {
+    background: transparent;
+}
+
+/* Alert styles */
+.alert-info-light {
+    padding: 1rem;
+    background: #dbeafe;
+    border-left: 4px solid #3b82f6;
+    color: #1e40af;
+    font-weight: 500;
+}
+
+.alert-warning-light {
+    padding: 1rem;
+    background: #fef3c7;
+    border-left: 4px solid #f59e0b;
+    color: #92400e;
+    font-weight: 500;
+}
+
+.alert-success-light {
+    padding: 1rem;
+    background: #d1fae5;
+    border-left: 4px solid #10b981;
+    color: #065f46;
+    font-weight: 500;
+}
+
+/* Unsaved count display */
+#unsaved-count {
+    font-weight: 600;
+    color: #f59e0b;
+}
+
+/* Lesson comment changed indicator */
+#lesson-comment.changed {
+    border-color: #f59e0b;
+    background: #fffbeb;
+}
+</style>
+{% endblock %}
+
 {% block scripts %}
 const unterrichtId = {{ unterricht_id }};
 const unsavedChanges = new Set();
+let lessonCommentChanged = false;
+const originalLessonComment = `{{ lesson_comment or '' }}`;
 
 function updateUnsavedCount() {
-    const count = unsavedChanges.size;
+    const count = unsavedChanges.size + (lessonCommentChanged ? 1 : 0);
     const saveBtn = document.getElementById('save-btn');
     const countDisplay = document.getElementById('unsaved-count');
+    const statusMessage = document.getElementById('status-message');
 
     if (count > 0) {
         saveBtn.disabled = false;
         saveBtn.classList.add('btn-warning');
         saveBtn.classList.remove('btn-primary');
-        countDisplay.textContent = `${count} Änderung${count > 1 ? 'en' : ''} nicht gespeichert`;
-        countDisplay.style.display = 'inline';
+
+        const studentCount = unsavedChanges.size;
+        const parts = [];
+        if (studentCount > 0) parts.push(`${studentCount} Schüler`);
+        if (lessonCommentChanged) parts.push('Stundenkommentar');
+
+        countDisplay.textContent = `⚠️ Nicht gespeichert: ${parts.join(', ')}`;
+        statusMessage.textContent = '⚠️ Es gibt nicht gespeicherte Änderungen';
+        statusMessage.className = 'alert-warning-light';
     } else {
         saveBtn.disabled = true;
         saveBtn.classList.remove('btn-warning');
         saveBtn.classList.add('btn-primary');
-        countDisplay.style.display = 'none';
+        countDisplay.textContent = '';
+
+        // Check if this is initial load (no data saved yet)
+        const savedRows = document.querySelectorAll('tr[data-saved="1"]').length;
+        if (savedRows === 0) {
+            statusMessage.textContent = '📝 Neue Unterrichtsstunde - Standardwerte werden angezeigt (alle anwesend, Bewertung "ok")';
+            statusMessage.className = 'alert-info-light';
+        } else {
+            statusMessage.textContent = '✅ Alle Daten für diesen Tag gespeichert';
+            statusMessage.className = 'alert-success-light';
+        }
     }
 }
 
@@ -148,23 +295,38 @@ function markAsChanged(studentId) {
     updateUnsavedCount();
 }
 
+function markLessonCommentChanged() {
+    const textarea = document.getElementById('lesson-comment');
+    if (textarea.value !== originalLessonComment) {
+        lessonCommentChanged = true;
+        textarea.classList.add('changed');
+    } else {
+        lessonCommentChanged = false;
+        textarea.classList.remove('changed');
+    }
+    updateUnsavedCount();
+}
+
 function saveStudent(studentId) {
     const row = document.querySelector(`tr[data-student-id="${studentId}"]`);
     const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
     const data = new FormData();
     data.append('student_id', studentId);
-    data.append('anwesend', row.querySelector('.attendance-toggle input[type="checkbox"]').checked ? '1' : '');
 
-    // Get ratings
-    ['admin_selbststaendigkeit', 'admin_respekt', 'admin_fortschritt'].forEach(field => {
-        const active = row.querySelector(`.rating-group button[onclick*="${field}"].active-1, .rating-group button[onclick*="${field}"].active-2, .rating-group button[onclick*="${field}"].active-3`);
-        if (active) {
-            const val = active.textContent;
-            data.append(field, val);
-        }
-    });
+    const isPresent = row.querySelector('.attendance-toggle input[type="checkbox"]').checked;
+    data.append('anwesend', isPresent ? '1' : '');
 
-    data.append('admin_kommentar', row.querySelector('input[type="text"]').value);
+    // Only save ratings if student is present
+    if (isPresent) {
+        ['admin_selbststaendigkeit', 'admin_respekt', 'admin_fortschritt'].forEach(field => {
+            const active = row.querySelector(`.rating-btn-new[onclick*="${field}"].active`);
+            if (active) {
+                const val = active.textContent.trim();
+                data.append(field, val);
+            }
+        });
+        data.append('admin_kommentar', row.querySelector('input[type="text"]').value);
+    }
 
     return fetch(`/admin/unterricht/${unterrichtId}/bewertung`, {
         method: 'POST',
@@ -173,7 +335,25 @@ function saveStudent(studentId) {
     }).then(() => {
         unsavedChanges.delete(studentId);
         row.classList.remove('unsaved-row');
+        row.setAttribute('data-saved', '1');
         updateUnsavedCount();
+    });
+}
+
+function saveLessonComment() {
+    if (!lessonCommentChanged) return Promise.resolve();
+
+    const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
+    const data = new FormData();
+    data.append('kommentar', document.getElementById('lesson-comment').value);
+
+    return fetch(`/admin/unterricht/${unterrichtId}/kommentar`, {
+        method: 'POST',
+        headers: {'X-CSRFToken': csrfToken},
+        body: data
+    }).then(() => {
+        lessonCommentChanged = false;
+        document.getElementById('lesson-comment').classList.remove('changed');
     });
 }
 
@@ -183,11 +363,16 @@ async function saveAll() {
     saveBtn.innerHTML = '💾 Speichern...';
     saveBtn.disabled = true;
 
-    const studentIds = Array.from(unsavedChanges);
-    const promises = studentIds.map(id => saveStudent(id));
-
     try {
+        // Save students
+        const studentIds = Array.from(unsavedChanges);
+        const studentPromises = studentIds.map(id => saveStudent(id));
+
+        // Save lesson comment
+        const promises = [...studentPromises, saveLessonComment()];
+
         await Promise.all(promises);
+
         saveBtn.innerHTML = '✅ Gespeichert!';
         setTimeout(() => {
             saveBtn.innerHTML = originalText;
@@ -201,26 +386,31 @@ async function saveAll() {
 }
 
 function updateAttendanceUI(row, isPresent) {
-    const ratingButtons = row.querySelectorAll('.rating-btn');
+    const ratingButtons = row.querySelectorAll('.rating-btn-new');
     const commentInput = row.querySelector('input[type="text"]');
+    const commentSelect = row.querySelector('select');
 
     ratingButtons.forEach(btn => {
         btn.disabled = !isPresent;
-        if (!isPresent) {
-            btn.classList.add('disabled');
-        } else {
-            btn.classList.remove('disabled');
-        }
     });
 
     commentInput.disabled = !isPresent;
+    commentSelect.disabled = !isPresent;
 
     // Clear ratings if marking absent
     if (!isPresent) {
         ratingButtons.forEach(btn => {
-            btn.classList.remove('active-1', 'active-2', 'active-3', 'unsaved');
+            btn.classList.remove('active');
         });
         commentInput.value = '';
+    } else {
+        // Set default 'ok' rating when marking present
+        ['admin_selbststaendigkeit', 'admin_respekt', 'admin_fortschritt'].forEach(field => {
+            const okBtn = row.querySelector(`.rating-btn-new.rating-ok[onclick*="${field}"]`);
+            if (okBtn && !row.querySelector(`.rating-btn-new[onclick*="${field}"].active`)) {
+                okBtn.classList.add('active');
+            }
+        });
     }
 }
 
@@ -228,10 +418,7 @@ function toggleAttendance(checkbox, studentId) {
     const row = document.querySelector(`tr[data-student-id="${studentId}"]`);
     const isPresent = checkbox.checked;
 
-    // Update UI based on attendance
     updateAttendanceUI(row, isPresent);
-
-    // Mark as changed for manual save
     markAsChanged(studentId);
 }
 
@@ -247,23 +434,41 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // Warn before leaving page with unsaved changes
 window.addEventListener('beforeunload', (event) => {
-    if (unsavedChanges.size > 0) {
+    if (unsavedChanges.size > 0 || lessonCommentChanged) {
         event.preventDefault();
-        event.returnValue = ''; // Chrome requires returnValue to be set
+        event.returnValue = '';
         return 'Sie haben nicht gespeicherte Änderungen. Möchten Sie die Seite wirklich verlassen?';
     }
 });
 
 function setRating(btn, studentId, field, value) {
     const group = btn.parentElement;
-    group.querySelectorAll('.rating-btn').forEach(b => {
-        b.classList.remove('active-1', 'active-2', 'active-3');
+    group.querySelectorAll('.rating-btn-new').forEach(b => {
+        b.classList.remove('active');
     });
-    btn.classList.add(`active-${value}`);
+    btn.classList.add('active');
     markAsChanged(studentId);
 }
 
 function updateComment(input, studentId) {
+    markAsChanged(studentId);
+}
+
+function insertPredefinedComment(select, studentId) {
+    if (!select.value) return;
+
+    const row = document.querySelector(`tr[data-student-id="${studentId}"]`);
+    const input = row.querySelector('input[type="text"]');
+
+    // Append to existing comment if not empty
+    if (input.value && !input.value.endsWith(' ')) {
+        input.value += ', ';
+    }
+    input.value += select.value;
+
+    // Reset dropdown
+    select.selectedIndex = 0;
+
     markAsChanged(studentId);
 }
 {% endblock %}
