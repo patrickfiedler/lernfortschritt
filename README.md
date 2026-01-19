@@ -2,8 +2,6 @@
 
 A German-language learning progress tracker for schools. Teachers manage classes, students, and learning tasks, while students track their progress, complete subtasks, and take quizzes.
 
-**Live Demo:** [lernen.mrfiedler.de](https://lernen.mrfiedler.de) (if available)
-
 ## Features
 
 ### For Teachers (Admin)
@@ -11,7 +9,7 @@ A German-language learning progress tracker for schools. Teachers manage classes
 - **Class Management**
   - Create and manage classes with schedules
   - Batch import students (simple "Nachname, Vorname" format)
-  - Auto-generated student credentials (e.g., "happypanda" / "bacado42")
+  - Auto-generated student credentials
 
 - **Task Management**
   - Create learning tasks with subtasks and materials
