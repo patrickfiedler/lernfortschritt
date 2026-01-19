@@ -8,15 +8,36 @@ Changes:
 3. Migrate existing data: 1 → "-", 2 → "ok", 3 → "+"
 
 Usage:
+    # For unencrypted database:
     python migrate_unterricht_rating_system.py [path_to_database]
+
+    # For SQLCipher encrypted database:
+    SQLCIPHER_KEY=your_key python migrate_unterricht_rating_system.py [path_to_database]
 
 If no path is provided, uses data/mbi_tracker.db
 """
 
-import sqlite3
 import sys
 import os
 from datetime import datetime
+
+# SQLCipher support: Use encrypted database if SQLCIPHER_KEY is set
+SQLCIPHER_KEY = os.environ.get('SQLCIPHER_KEY')
+USE_SQLCIPHER = False
+
+if SQLCIPHER_KEY:
+    try:
+        from sqlcipher3 import dbapi2 as sqlite3
+        USE_SQLCIPHER = True
+        print("Using SQLCipher encrypted database")
+    except ImportError:
+        import sqlite3
+        print("WARNING: SQLCIPHER_KEY is set but sqlcipher3 is not installed.", file=sys.stderr)
+        print("Database will NOT be encrypted. Install with: pip install sqlcipher3-binary", file=sys.stderr)
+        sys.exit(1)
+else:
+    import sqlite3
+    print("Using standard SQLite (unencrypted)")
 
 
 def migrate_database(db_path):
@@ -31,6 +52,13 @@ def migrate_database(db_path):
 
     conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
+
+    # Set encryption key if using SQLCipher
+    if USE_SQLCIPHER and SQLCIPHER_KEY:
+        # Escape any double quotes in key
+        safe_key = SQLCIPHER_KEY.replace('"', '""')
+        conn.execute(f'PRAGMA key = "{safe_key}"')
+
     cursor = conn.cursor()
 
     try:
