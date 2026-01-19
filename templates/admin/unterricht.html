@@ -66,24 +66,24 @@
                 </td>
                 <td>
                     <div class="rating-group-new">
-                        {% for val in ['-', 'ok', '+'] %}
-                        <button type="button" class="rating-btn-new rating-{{ val }} {% if student.admin_selbststaendigkeit == val %}active{% endif %}"
+                        {% for val, css_class in [('-', 'minus'), ('ok', 'ok'), ('+', 'plus')] %}
+                        <button type="button" class="rating-btn-new rating-{{ css_class }} {% if student.admin_selbststaendigkeit == val %}active{% endif %}"
                                 onclick="setRating(this, {{ student.student_id }}, 'admin_selbststaendigkeit', '{{ val }}')">{{ val }}</button>
                         {% endfor %}
                     </div>
                 </td>
                 <td>
                     <div class="rating-group-new">
-                        {% for val in ['-', 'ok', '+'] %}
-                        <button type="button" class="rating-btn-new rating-{{ val }} {% if student.admin_respekt == val %}active{% endif %}"
+                        {% for val, css_class in [('-', 'minus'), ('ok', 'ok'), ('+', 'plus')] %}
+                        <button type="button" class="rating-btn-new rating-{{ css_class }} {% if student.admin_respekt == val %}active{% endif %}"
                                 onclick="setRating(this, {{ student.student_id }}, 'admin_respekt', '{{ val }}')">{{ val }}</button>
                         {% endfor %}
                     </div>
                 </td>
                 <td>
                     <div class="rating-group-new">
-                        {% for val in ['-', 'ok', '+'] %}
-                        <button type="button" class="rating-btn-new rating-{{ val }} {% if student.admin_fortschritt == val %}active{% endif %}"
+                        {% for val, css_class in [('-', 'minus'), ('ok', 'ok'), ('+', 'plus')] %}
+                        <button type="button" class="rating-btn-new rating-{{ css_class }} {% if student.admin_fortschritt == val %}active{% endif %}"
                                 onclick="setRating(this, {{ student.student_id }}, 'admin_fortschritt', '{{ val }}')">{{ val }}</button>
                         {% endfor %}
                     </div>
