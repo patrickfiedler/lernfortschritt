@@ -57,6 +57,12 @@
         </div>
 
         <div class="form-group">
+            <label for="why_learn_this">Wofür brauchen die Schüler das? 💡</label>
+            <textarea id="why_learn_this" name="why_learn_this" class="form-control" rows="2" placeholder="z.B. 'Du lernst, wie Computer funktionieren - das brauchst du, um digitale Geräte zu verstehen.'">{{ task.why_learn_this if task else '' }}</textarea>
+            <small class="text-muted">Kurze Erklärung (1-2 Sätze), altersgerecht für Stufe {{ task.stufe if task else 'X/Y' }}. Wird den Schülern prominent angezeigt.</small>
+        </div>
+
+        <div class="form-group">
             <label for="voraussetzungen">Voraussetzungen (optional)</label>
             <select id="voraussetzungen" name="voraussetzungen" class="form-control" multiple size="5">
                 {% for t in tasks %}

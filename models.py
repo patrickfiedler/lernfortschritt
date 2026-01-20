@@ -864,23 +864,23 @@ def get_task(task_id):
         return dict(row) if row else None
 
 
-def create_task(name, beschreibung, lernziel, fach, stufe, kategorie, quiz_json=None, number=0):
+def create_task(name, beschreibung, lernziel, fach, stufe, kategorie, quiz_json=None, number=0, why_learn_this=None):
     """Create a new task."""
     with db_session() as conn:
         cursor = conn.execute(
-            "INSERT INTO task (name, number, beschreibung, lernziel, fach, stufe, kategorie, quiz_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-            (name, number, beschreibung, lernziel, fach, stufe, kategorie, quiz_json)
+            "INSERT INTO task (name, number, beschreibung, lernziel, fach, stufe, kategorie, quiz_json, why_learn_this) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (name, number, beschreibung, lernziel, fach, stufe, kategorie, quiz_json, why_learn_this)
         )
         return cursor.lastrowid
 
 
-def update_task(task_id, name, beschreibung, lernziel, fach, stufe, kategorie, quiz_json=None, number=0):
+def update_task(task_id, name, beschreibung, lernziel, fach, stufe, kategorie, quiz_json=None, number=0, why_learn_this=None):
     """Update a task."""
     with db_session() as conn:
         conn.execute('''
             UPDATE task SET name=?, number=?, beschreibung=?, lernziel=?, fach=?, stufe=?,
-            kategorie=?, quiz_json=? WHERE id=?
-        ''', (name, number, beschreibung, lernziel, fach, stufe, kategorie, quiz_json, task_id))
+            kategorie=?, quiz_json=?, why_learn_this=? WHERE id=?
+        ''', (name, number, beschreibung, lernziel, fach, stufe, kategorie, quiz_json, why_learn_this, task_id))
 
 
 def delete_task(task_id):
