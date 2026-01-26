@@ -13,6 +13,17 @@ instance/
 
 # Test scripts
 test_*.py
+check_*.py
+diagnose_*.py
+profile_*.py
+benchmark_*.py
+
+# Mockups and temporary HTML
+mockup_*.html
+
+# Local databases (testing)
+*.db
+!data/.gitkeep
 
 # Python
 __pycache__/
