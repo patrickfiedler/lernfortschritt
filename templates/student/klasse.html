@@ -50,18 +50,12 @@
     </div>
     {% endif %}
 
-    <!-- Success Banner (hidden initially, shown after completing task) -->
-    <div class="success-banner" id="success-banner" style="display: none;">
-        <span class="success-icon">✓</span>
-        <div>Gut gemacht! Aufgabe erledigt.</div>
-    </div>
-
     <!-- Current Task/Subtask -->
     {% if current_subtask or subtasks %}
     <div class="current-task">
         {% if current_subtask %}
         <!-- Show current subtask -->
-        <div class="task-badge">Aufgabe {{ current_subtask.reihenfolge + 1 }} von {{ all_subtasks|length }}</div>
+        <div class="task-badge">Aufgabe {{ current_subtask.reihenfolge }} von {{ all_subtasks|length }}</div>
         {% elif subtasks %}
         <!-- Legacy mode: show first uncompleted -->
         {% set first_uncompleted = subtasks|rejectattr('erledigt')|list|first %}
@@ -94,11 +88,44 @@
             <label for="subtask-checkbox-{{ active_subtask.id }}">Als erledigt markieren</label>
         </div>
         {% endif %}
+
+        <!-- Success Banner (hidden initially, shown after completing task) -->
+        <div class="success-banner" id="success-banner" style="display: none;">
+            <span class="success-icon">✓</span>
+            <div>Gut gemacht! Aufgabe erledigt.</div>
+        </div>
+
+        <!-- Task Navigation -->
+        <div class="task-navigation">
+            {% if all_subtasks and current_subtask %}
+            {% set current_index = all_subtasks|selectattr('id', 'equalto', current_subtask.id)|list|first %}
+            {% if current_index %}
+            {% set current_position = all_subtasks.index(current_index) %}
+            <div class="nav-buttons">
+                {% if current_position > 0 %}
+                <a href="?subtask_id={{ all_subtasks[current_position - 1].id }}" class="nav-button nav-prev">
+                    ← Vorherige
+                </a>
+                {% else %}
+                <span class="nav-button nav-disabled">← Vorherige</span>
+                {% endif %}
+
+                {% if current_position < all_subtasks|length - 1 %}
+                <a href="?subtask_id={{ all_subtasks[current_position + 1].id }}" class="nav-button nav-next">
+                    Nächste →
+                </a>
+                {% else %}
+                <span class="nav-button nav-disabled">Nächste →</span>
+                {% endif %}
+            </div>
+            {% endif %}
+            {% endif %}
+        </div>
     </div>
 
-    <!-- Next Button (hidden initially, shown after marking complete) -->
-    <button class="action-button" id="next-button" style="display: none;" onclick="goToNextSubtask()">
-        Weiter zur nächsten Aufgabe →
+    <!-- Next Incomplete Button (hidden initially, shown after marking complete) -->
+    <button class="action-button" id="next-button" style="display: none;" onclick="goToNextIncomplete()">
+        Weiter zur nächsten unerledigten Aufgabe →
     </button>
 
     <!-- Completed Subtasks (collapsible) -->
@@ -207,9 +234,14 @@
 {% endblock %}
 
 {% block scripts %}
-<script>
 function toggleSubtask(studentTaskId, subtaskId, checked) {
     const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
+
+    // Disable checkbox during request
+    const checkbox = document.getElementById(`subtask-checkbox-${subtaskId}`);
+    if (checkbox) {
+        checkbox.disabled = true;
+    }
 
     fetch(`/schueler/aufgabe/${studentTaskId}/teilaufgabe/${subtaskId}`, {
         method: 'POST',
@@ -218,7 +250,14 @@ function toggleSubtask(studentTaskId, subtaskId, checked) {
             'X-CSRFToken': csrfToken
         },
         body: JSON.stringify({erledigt: checked})
-    }).then(r => r.json()).then(data => {
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+    })
+    .then(data => {
         if (checked) {
             // Show success banner and next button
             const successBanner = document.getElementById('success-banner');
@@ -243,11 +282,17 @@ function toggleSubtask(studentTaskId, subtaskId, checked) {
             updateProgressText();
         } else {
             // Unchecking - reload page to reset state
-            location.reload();
+            setTimeout(() => location.reload(), 100);
         }
-    }).catch(err => {
+    })
+    .catch(err => {
         console.error('Error toggling subtask:', err);
-        alert('Fehler beim Speichern. Bitte versuche es erneut.');
+        // Re-enable and reset checkbox on error
+        if (checkbox) {
+            checkbox.disabled = false;
+            checkbox.checked = !checked;  // Revert to previous state
+        }
+        alert(`Fehler beim Speichern: ${err.message}\nBitte versuche es erneut oder lade die Seite neu.`);
     });
 }
 
@@ -261,8 +306,8 @@ function updateProgressText() {
     }
 }
 
-function goToNextSubtask() {
-    // Reload page to show next subtask
+function goToNextIncomplete() {
+    // Reload page to show next incomplete subtask
     // The backend will automatically show the next uncompleted subtask
     location.reload();
 }
@@ -278,5 +323,4 @@ window.addEventListener('DOMContentLoaded', function() {
         }
     }
 });
-</script>
 {% endblock %}

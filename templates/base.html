@@ -23,7 +23,7 @@
                     <a href="{{ url_for('admin_errors') }}">Fehlerprotokolle</a>
                     <a href="{{ url_for('admin_passwort') }}">{{ session.admin_username }}</a>
                 {% elif session.student_id %}
-                    <a href="{{ url_for('student_dashboard') }}">Meine Aufgaben</a>
+                    <a href="{{ url_for('student_dashboard') }}">Meine Themen</a>
                     <span>👤 {{ session.student_name }}</span>
                 {% endif %}
                 <a href="{{ url_for('logout') }}">Abmelden</a>

@@ -1121,24 +1121,35 @@ def student_klasse(klasse_id):
         materials = models.get_materials(task['task_id'])
         quiz_attempts = models.get_quiz_attempts(task['id'])
 
-        # Filter subtasks based on current_subtask_id
-        if task.get('current_subtask_id'):
+        # Check if specific subtask requested via URL parameter
+        requested_subtask_id = request.args.get('subtask_id', type=int)
+
+        # Filter subtasks based on current_subtask_id or requested subtask
+        if requested_subtask_id:
+            # Show requested subtask (for navigation)
+            for st in all_subtasks:
+                if st['id'] == requested_subtask_id:
+                    current_subtask = st
+                    subtasks = [st]
+                    break
+        elif task.get('current_subtask_id'):
             # Show only current subtask
-            current_subtask = models.get_current_subtask(task['id'])
-            if current_subtask:
-                # Find the current subtask in the full list to get completion status
-                for st in all_subtasks:
-                    if st['id'] == current_subtask['id']:
-                        subtasks = [st]
-                        break
-                # Get completed subtasks for display
-                completed_subtasks = [st for st in all_subtasks if st['erledigt']]
-            else:
-                # Fallback: If current_subtask_id is set but subtask doesn't exist,
-                # show all subtasks (handles deleted subtasks or tasks with no subtasks)
-                subtasks = all_subtasks
+            for st in all_subtasks:
+                if st['id'] == task['current_subtask_id']:
+                    current_subtask = st  # Use the one from all_subtasks with erledigt field
+                    subtasks = [st]
+                    break
+
+        # Always calculate completed_subtasks the same way - all completed except the one being viewed
+        if current_subtask and current_subtask.get('erledigt'):
+            # If viewing a completed task, exclude it from the "already completed" list
+            completed_subtasks = [st for st in all_subtasks if st['erledigt'] and st['id'] != current_subtask['id']]
         else:
-            # Show all subtasks (backward compatible)
+            # If viewing an incomplete task, show all completed tasks
+            completed_subtasks = [st for st in all_subtasks if st['erledigt']]
+
+        # Fallback: If no current_subtask found, show all subtasks (backward compatible)
+        if not current_subtask:
             subtasks = all_subtasks
 
     # Get lesson history

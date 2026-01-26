@@ -15,6 +15,8 @@
 - ~~Student progress reports as PDF file per class: human readable format for quick overview~~ (Complete - Phase 6)
 - ~~student progress reports as PDF file per student: information from class progress report + student's individual activity log~~ (Complete - Phase 6)
 - ~~Add regular class dates for each class (schedule)~~ (Complete - implemented in student assessment improvements)
+- add external API to upload log files from scan-folders.ps1 script -> major feature to track student progress from the files they create on the school computers
+- later: add AI enabled grading workflow -> needs lots of investigation and testing
 
 ## Improvements
 
@@ -30,6 +32,8 @@
 
 - ~~Fix task sorting: should be 1-2-3-10, not 1-10-2-3 (alphabetical vs numerical)~~ (Fixed)
 - ~~Class assessment: make it obvious if data has been saved for a day (currently unclear - shows default 2/3 points for all dates)~~ (Fixed in student assessment improvements)
+- fix: consistently rename tasks -> topics and subtasks -> tasks (or their respective German equivalents for the frontend) throughout the whole app
+- fix: Make lesson comment saveable without saving student evaluation -> required in case a scheduled lesson does not take place
 
 ## Notes
 

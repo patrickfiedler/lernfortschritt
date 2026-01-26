@@ -1179,7 +1179,7 @@ def get_student_task(student_id, klasse_id):
 
     with db_session() as conn:
         row = conn.execute('''
-            SELECT st.*, t.name, t.beschreibung, t.lernziel, t.fach, t.stufe, t.kategorie, t.quiz_json
+            SELECT st.*, t.name, t.beschreibung, t.lernziel, t.fach, t.stufe, t.kategorie, t.quiz_json, t.why_learn_this
             FROM student_task st
             JOIN task t ON st.task_id = t.id
             WHERE st.student_id = ? AND st.klasse_id = ?
@@ -1273,34 +1273,27 @@ def _advance_to_next_subtask_internal(conn, student_task_id, current_subtask_id)
     if not subtasks:
         return
 
-    # Find next incomplete subtask
-    current_found = False
+    # Find first incomplete subtask (from the beginning, not just after current)
     for sub in subtasks:
         subtask_id = sub['id']
 
-        # Skip until we find the current subtask
-        if subtask_id == current_subtask_id:
-            current_found = True
-            continue
+        # Check if this subtask is complete
+        completed = conn.execute(
+            "SELECT erledigt FROM student_subtask WHERE student_task_id = ? AND subtask_id = ?",
+            (student_task_id, subtask_id)
+        ).fetchone()
 
-        # After current, find first incomplete
-        if current_found:
-            completed = conn.execute(
-                "SELECT erledigt FROM student_subtask WHERE student_task_id = ? AND subtask_id = ?",
-                (student_task_id, subtask_id)
-            ).fetchone()
+        if not completed or not completed['erledigt']:
+            # Found first incomplete subtask
+            conn.execute(
+                "UPDATE student_task SET current_subtask_id = ? WHERE id = ?",
+                (subtask_id, student_task_id)
+            )
+            return
 
-            if not completed or not completed['erledigt']:
-                # Found next incomplete subtask
-                conn.execute(
-                    "UPDATE student_task SET current_subtask_id = ? WHERE id = ?",
-                    (subtask_id, student_task_id)
-                )
-                return
-
-    # If we get here, all remaining subtasks are complete
-    # Keep current_subtask_id pointing to the last one (or set to None to show all)
-    # For now, we'll leave it pointing to the current one
+    # If we get here, all subtasks are complete
+    # Check if task should be marked complete (all subtasks done + quiz passed or no quiz)
+    check_task_completion(student_task_id)
 
 
 def advance_to_next_subtask(student_task_id, current_subtask_id):
