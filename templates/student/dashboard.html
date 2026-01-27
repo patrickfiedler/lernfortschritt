@@ -13,48 +13,45 @@
     {% for klasse in klassen %}
     {% set task = tasks_by_klasse.get(klasse.id) %}
     <div class="card task-card {% if task and task.abgeschlossen %}complete{% elif task and task.kategorie == 'bonus' %}bonus{% endif %}">
+        {% if task %}
         <div class="card-header flex flex-between">
-            <span>📁 {{ klasse.name }}</span>
-            {% if task %}
-                {% if task.abgeschlossen %}
-                <span class="badge badge-success">✅ Fertig</span>
-                {% else %}
-                <span class="badge badge-primary">🔄 In Arbeit</span>
-                {% endif %}
+            <span>{% if task.kategorie == 'bonus' %}⭐{% else %}📚{% endif %} {{ task.name }}</span>
+            {% if task.abgeschlossen %}
+            <span class="badge badge-success">✅ Fertig</span>
+            {% else %}
+            <span class="badge badge-primary">🔄 In Arbeit</span>
             {% endif %}
         </div>
 
-        {% if task %}
-            <h3>{{ task.name }}</h3>
-            {% if task.kategorie == 'bonus' %}
-            <span class="badge badge-warning mb-1">⭐ Bonusthema</span>
-            {% endif %}
+        {% if task.kategorie == 'bonus' %}
+        <span class="badge badge-warning mb-1">⭐ Bonusthema</span>
+        {% endif %}
 
-            <p class="text-muted mb-1">{{ task.fach }} · {{ task.stufe }}</p>
+        <p class="text-muted mb-1">{{ task.fach }} · {{ task.stufe }}</p>
 
-            {% if task.lernziel %}
-            <div class="mb-1"><strong>🎯 Lernziel:</strong> <span class="markdown-content">{{ task.lernziel | markdown }}</span></div>
-            {% endif %}
+        {% if task.lernziel %}
+        <div class="mb-1"><strong>🎯 Lernziel:</strong> <span class="markdown-content">{{ task.lernziel | markdown }}</span></div>
+        {% endif %}
 
-            <!-- Progress -->
-            {% if task.total_subtasks > 0 %}
-            <div class="mb-1">
-                <div class="flex flex-between mb-1">
-                    <span>Fortschritt</span>
-                    <span>{{ task.completed_subtasks }}/{{ task.total_subtasks }}</span>
-                </div>
-                <div class="progress-container">
-                    <div class="progress-bar {% if task.completed_subtasks == task.total_subtasks %}complete{% endif %}"
-                         style="width: {{ (task.completed_subtasks / task.total_subtasks * 100) if task.total_subtasks > 0 else 0 }}%;"></div>
-                </div>
+        <!-- Progress -->
+        {% if task.total_subtasks > 0 %}
+        <div class="mb-1">
+            <div class="flex flex-between mb-1">
+                <span>Fortschritt</span>
+                <span>{{ task.completed_subtasks }}/{{ task.total_subtasks }}</span>
             </div>
-            {% endif %}
+            <div class="progress-container">
+                <div class="progress-bar {% if task.completed_subtasks == task.total_subtasks %}complete{% endif %}"
+                     style="width: {{ (task.completed_subtasks / task.total_subtasks * 100) if task.total_subtasks > 0 else 0 }}%;"></div>
+            </div>
+        </div>
+        {% endif %}
 
-            <a href="{{ url_for('student_klasse', klasse_id=klasse.id) }}" class="btn btn-primary">
-                {% if task.abgeschlossen %}Details ansehen{% else %}Weiter lernen →{% endif %}
-            </a>
+        <a href="{{ url_for('student_klasse', klasse_id=klasse.id) }}" class="btn btn-primary">
+            {% if task.abgeschlossen %}Details ansehen{% else %}Weiter lernen →{% endif %}
+        </a>
         {% else %}
-            <p class="text-muted">Kein Thema zugewiesen.</p>
+        <p class="text-muted">Kein Thema zugewiesen.</p>
         {% endif %}
     </div>
     {% endfor %}
