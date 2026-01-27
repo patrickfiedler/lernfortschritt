@@ -13,7 +13,7 @@ import markdown as md
 
 import config
 import models
-from utils import generate_username, generate_password, allowed_file, generate_credentials_pdf
+from utils import generate_username, generate_password, allowed_file, generate_credentials_pdf, generate_student_self_report_pdf
 
 app = Flask(__name__)
 app.secret_key = config.SECRET_KEY
@@ -1258,7 +1258,7 @@ def student_bericht():
         return redirect(url_for('student_dashboard'))
 
     # Generate PDF with student-friendly framing
-    pdf_buffer = utils.generate_student_self_report_pdf(report_data)
+    pdf_buffer = generate_student_self_report_pdf(report_data)
 
     # Prepare filename
     student = report_data['student']

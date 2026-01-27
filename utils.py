@@ -732,14 +732,14 @@ def generate_student_self_report_pdf(report_data):
     # Metrics with positive language
     metrics_data = []
     if login_days > 0:
-        metrics_data.append(['Aktive Lerntage', f"<b>{login_days}</b>"])
+        metrics_data.append(['Aktive Lerntage', Paragraph(f"<b>{login_days}</b>", styles['Normal'])])
     if tasks_completed_count > 0:
-        metrics_data.append(['Aufgaben abgeschlossen', f"<b>{tasks_completed_count}</b>"])
+        metrics_data.append(['Aufgaben abgeschlossen', Paragraph(f"<b>{tasks_completed_count}</b>", styles['Normal'])])
     if quiz_passes > 0:
-        metrics_data.append(['Quiz bestanden', f"<b>{quiz_passes}</b>"])
+        metrics_data.append(['Quiz bestanden', Paragraph(f"<b>{quiz_passes}</b>", styles['Normal'])])
 
     if not metrics_data:
-        metrics_data.append(['Status', '<b>Bereit zum Loslegen!</b>'])
+        metrics_data.append(['Status', Paragraph('<b>Bereit zum Loslegen!</b>', styles['Normal'])])
 
     metrics_table = Table(metrics_data, colWidths=[9*cm, 5*cm])
     metrics_table.setStyle(TableStyle([
@@ -775,12 +775,12 @@ def generate_student_self_report_pdf(report_data):
                 progress_text = "Bereit zum Start"
 
             task_data.append([
-                task['klasse_name'],
-                task['name'],
-                progress_text
+                Paragraph(task['klasse_name'], styles['Normal']),
+                Paragraph(task['name'], styles['Normal']),
+                Paragraph(progress_text, styles['Normal'])
             ])
 
-        task_table = Table(task_data, colWidths=[4*cm, 5*cm, 5*cm])
+        task_table = Table(task_data, colWidths=[4*cm, 6*cm, 4*cm])
         task_table.setStyle(TableStyle([
             ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
             ('FONTSIZE', (0, 0), (-1, -1), 11),
