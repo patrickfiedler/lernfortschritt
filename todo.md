@@ -8,6 +8,15 @@
 - ~~student attendance and evaluation page -> completely rewrite this page~~ (Complete - commit c8e446f, new rating system with -, ok, +, pre-defined comments, lesson comments)
 - Code Review
 
+## UX/Accessibility Improvements
+**See comprehensive audit:** `docs/archive/2026-01-27_ux_audit/`
+
+Key findings: Students ask "What should I do?" (clarity issue), phone-only equity concerns, ADHD support needed
+
+**Tier 1 - Critical (~10 hours)**: Mobile touch targets, clarity improvements, quiz anxiety reduction, OpenDyslexic font, focus mode with in-app resource viewer
+**Tier 2 - High Priority**: Draft saving, color blindness support, ARIA labels
+**Tier 3 - Major Restructure**: Topic → Task → Subtask redesign (5-20 min chunks) - Highest ROI
+
 ## Features
 
 - ~~Logging functionality: track number of users and page views~~ (Complete - Phase 5, commit 7720a2a)
