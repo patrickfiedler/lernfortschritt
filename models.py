@@ -792,6 +792,15 @@ def get_student(student_id):
     return result
 
 
+def update_student_setting(student_id, setting_name, value):
+    """Update a student setting (UX Tier 1: Easy Reading Mode)."""
+    with db_session() as conn:
+        conn.execute(f"UPDATE student SET {setting_name} = ? WHERE id = ?", (value, student_id))
+    # Clear cache
+    if cache:
+        cache.delete(f'student_{student_id}')
+
+
 def get_student_klassen(student_id):
     """Get all classes a student belongs to."""
     # Cache for 2 minutes if cache is available (class membership rarely changes)
@@ -1063,16 +1072,74 @@ def delete_subtask(subtask_id):
         conn.execute("DELETE FROM subtask WHERE id = ?", (subtask_id,))
 
 
-def update_subtasks(task_id, subtasks_list):
-    """Replace all subtasks for a task."""
+def update_subtasks(task_id, subtasks_list, estimated_minutes_list=None):
+    """Replace all subtasks for a task (UX Tier 1: now includes time estimates).
+
+    Preserves visibility settings by matching subtask order/position.
+    """
     with db_session() as conn:
+        # Step 1: Save visibility settings by order (reihenfolge), not ID
+        old_visibility = conn.execute("""
+            SELECT sv.klasse_id, sv.student_id, sv.enabled, sv.set_by_admin_id, s.reihenfolge
+            FROM subtask_visibility sv
+            JOIN subtask s ON sv.subtask_id = s.id
+            WHERE s.task_id = ?
+            ORDER BY s.reihenfolge
+        """, (task_id,)).fetchall()
+
+        # Convert to dict: (klasse_id or None, student_id or None, reihenfolge) -> (enabled, admin_id)
+        visibility_by_position = {}
+        for row in old_visibility:
+            key = (row['klasse_id'], row['student_id'], row['reihenfolge'])
+            visibility_by_position[key] = (row['enabled'], row['set_by_admin_id'])
+
+        # Step 2: Delete old visibility records and subtasks
+        conn.execute("""
+            DELETE FROM subtask_visibility
+            WHERE subtask_id IN (SELECT id FROM subtask WHERE task_id = ?)
+        """, (task_id,))
         conn.execute("DELETE FROM subtask WHERE task_id = ?", (task_id,))
+
+        # Step 3: Create new subtasks and track their IDs by position
+        first_new_subtask_id = None
+        new_subtask_ids_by_position = {}
+
         for i, beschreibung in enumerate(subtasks_list):
             if beschreibung.strip():
-                conn.execute(
-                    "INSERT INTO subtask (task_id, beschreibung, reihenfolge) VALUES (?, ?, ?)",
-                    (task_id, beschreibung.strip(), i)
+                # Get estimated_minutes if provided
+                estimated_minutes = None
+                if estimated_minutes_list and i < len(estimated_minutes_list):
+                    try:
+                        minutes = estimated_minutes_list[i].strip()
+                        estimated_minutes = int(minutes) if minutes else None
+                    except (ValueError, AttributeError):
+                        estimated_minutes = None
+
+                cursor = conn.execute(
+                    "INSERT INTO subtask (task_id, beschreibung, reihenfolge, estimated_minutes) VALUES (?, ?, ?, ?)",
+                    (task_id, beschreibung.strip(), i, estimated_minutes)
                 )
+                new_subtask_id = cursor.lastrowid
+                new_subtask_ids_by_position[i] = new_subtask_id
+
+                if first_new_subtask_id is None:
+                    first_new_subtask_id = new_subtask_id
+
+        # Step 4: Restore visibility settings for matching positions
+        for (klasse_id, student_id, old_position), (enabled, admin_id) in visibility_by_position.items():
+            if old_position in new_subtask_ids_by_position:
+                new_subtask_id = new_subtask_ids_by_position[old_position]
+                conn.execute("""
+                    INSERT INTO subtask_visibility (subtask_id, klasse_id, student_id, enabled, set_by_admin_id)
+                    VALUES (?, ?, ?, ?, ?)
+                """, (new_subtask_id, klasse_id, student_id, enabled, admin_id))
+
+        # Step 5: Fix orphaned current_subtask_id references
+        if first_new_subtask_id is not None:
+            conn.execute(
+                "UPDATE student_task SET current_subtask_id = ? WHERE task_id = ?",
+                (first_new_subtask_id, task_id)
+            )
 
 
 # ============ Material functions ============
@@ -1607,7 +1674,8 @@ def check_task_completion(student_task_id):
 
 def save_quiz_attempt(student_task_id, punkte, max_punkte, antworten_json):
     """Save a quiz attempt."""
-    bestanden = (punkte / max_punkte) >= 0.8 if max_punkte > 0 else False
+    # UX Tier 1: Reduced threshold from 80% to 70% to reduce anxiety
+    bestanden = (punkte / max_punkte) >= 0.7 if max_punkte > 0 else False
     with db_session() as conn:
         cursor = conn.execute('''
             INSERT INTO quiz_attempt (student_task_id, punkte, max_punkte, bestanden, antworten_json)

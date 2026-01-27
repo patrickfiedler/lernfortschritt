@@ -36,17 +36,28 @@
             <div class="progress-text" id="progress-text">
                 {{ subtasks|selectattr('erledigt')|list|length }} von {{ subtasks|length }} Aufgaben erledigt
             </div>
-            <div class="progress-dots">
+            <div class="progress-dots" role="group" aria-label="Aufgabenfortschritt">
                 {% for sub in subtasks %}
                 <div class="dot {% if sub.erledigt %}completed {% endif %}{% if current_subtask and sub.id == current_subtask.id %}current{% endif %}"
+                     role="button"
+                     tabindex="0"
+                     aria-label="Aufgabe {{ loop.index }}: {{ sub.beschreibung[:50] }}{% if sub.beschreibung|length > 50 %}...{% endif %}{% if sub.erledigt %} - Erledigt{% endif %}"
+                     {% if current_subtask and sub.id == current_subtask.id %}aria-current="true"{% endif %}
                      data-subtask-index="{{ loop.index0 }}"
                      data-subtask-id="{{ sub.id }}"
                      onclick="navigateToSubtask({{ sub.id }})"
+                     onkeydown="handleDotKeydown(event, {{ sub.id }})"
                      title="Aufgabe {{ loop.index }}: {{ sub.beschreibung[:30] }}{% if sub.beschreibung|length > 30 %}...{% endif %}"></div>
                 {% endfor %}
                 {% if task.quiz_json %}
                 <div class="dot dot-quiz {% if task.quiz_bestanden %}completed{% endif %}"
-                     title="Quiz" data-is-quiz="true">?</div>
+                     role="button"
+                     tabindex="0"
+                     aria-label="Quiz{% if task.quiz_bestanden %} - Bestanden{% endif %}"
+                     title="Quiz"
+                     data-is-quiz="true"
+                     onclick="navigateToQuiz()"
+                     onkeydown="handleQuizKeydown(event)">?</div>
                 {% endif %}
             </div>
         </div>
@@ -58,7 +69,7 @@
     {% set active_subtask = current_subtask or (subtasks|rejectattr('erledigt')|list|first) %}
     {% set current_index = subtasks.index(active_subtask) if active_subtask and active_subtask in subtasks else 0 %}
     {% set has_prev = current_index > 0 %}
-    {% set has_next = current_index < (subtasks|length - 1) %}
+    {% set has_next = current_index < (subtasks|length - 1) or (current_index == (subtasks|length - 1) and task.quiz_json) %}
 
     <div class="task-navigation-wrapper">
         <!-- Desktop: Left Button -->
@@ -72,7 +83,14 @@
         <!-- Content (shows first on mobile, center on desktop) -->
         <div class="current-task">
             {% if active_subtask %}
-            <div class="task-badge">Aufgabe {{ current_index + 1 }} von {{ subtasks|length }}</div>
+            <div class="task-badge-group">
+                <div class="task-badge">Aufgabe {{ current_index + 1 }} von {{ subtasks|length }}</div>
+                {% if active_subtask.estimated_minutes %}
+                <div class="task-badge time-estimate">⏱️ ~{{ active_subtask.estimated_minutes }} Min</div>
+                {% else %}
+                <div class="task-badge time-estimate">⏱️ ~15-30 Min</div>
+                {% endif %}
+            </div>
             {% endif %}
 
             <div class="task-content markdown-content">
@@ -90,7 +108,7 @@
                        {% if active_subtask.erledigt %}checked{% endif %}
                        onchange="toggleSubtask({{ task.id }}, {{ active_subtask.id }}, this.checked)"
                        onclick="event.stopPropagation()">
-                <label for="subtask-checkbox-{{ active_subtask.id }}">Als erledigt markieren</label>
+                <label for="subtask-checkbox-{{ active_subtask.id }}">Ich habe das geschafft! ✓</label>
             </div>
             {% endif %}
 
@@ -324,6 +342,12 @@ function goToNextSubtask(currentIndex) {
         url.searchParams.set('subtask_id', nextSubtaskId);
         url.searchParams.set('_t', Date.now());
         window.location.href = url.toString();
+    } else {
+        // On last subtask - check if there's a quiz
+        const quizDot = document.querySelector('.dot-quiz');
+        if (quizDot) {
+            navigateToQuiz();
+        }
     }
 }
 
@@ -344,6 +368,58 @@ function navigateToSubtask(subtaskId) {
     url.searchParams.set('subtask_id', subtaskId);
     url.searchParams.set('_t', Date.now());
     window.location.href = url.toString();
+}
+
+function navigateToQuiz() {
+    // Navigate to quiz page
+    window.location.href = `/schueler/aufgabe/{{ task.id }}/quiz`;
+}
+
+// Keyboard navigation for progress dots (WCAG 2.1 keyboard accessibility)
+function handleDotKeydown(event, subtaskId) {
+    // Enter or Space = click the dot
+    if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault();
+        navigateToSubtask(subtaskId);
+    }
+    // Arrow keys = navigate between dots
+    else if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
+        event.preventDefault();
+        const dots = Array.from(document.querySelectorAll('.progress-dots .dot'));
+        const currentIndex = dots.indexOf(event.target);
+
+        let nextIndex;
+        if (event.key === 'ArrowLeft') {
+            nextIndex = currentIndex > 0 ? currentIndex - 1 : dots.length - 1;
+        } else {
+            nextIndex = currentIndex < dots.length - 1 ? currentIndex + 1 : 0;
+        }
+
+        dots[nextIndex].focus();
+    }
+}
+
+function handleQuizKeydown(event) {
+    // Enter or Space = navigate to quiz
+    if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault();
+        navigateToQuiz();
+    }
+    // Arrow keys = navigate to adjacent dots
+    else if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
+        event.preventDefault();
+        const dots = Array.from(document.querySelectorAll('.progress-dots .dot'));
+        const currentIndex = dots.indexOf(event.target);
+
+        let nextIndex;
+        if (event.key === 'ArrowLeft') {
+            nextIndex = currentIndex > 0 ? currentIndex - 1 : dots.length - 1;
+        } else {
+            nextIndex = currentIndex < dots.length - 1 ? currentIndex + 1 : 0;
+        }
+
+        dots[nextIndex].focus();
+    }
 }
 
 // Smooth scroll to element on page load if hash is present

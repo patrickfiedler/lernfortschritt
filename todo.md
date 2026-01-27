@@ -9,13 +9,10 @@
 - Code Review
 
 ## UX/Accessibility Improvements
-**See comprehensive audit:** `docs/archive/2026-01-27_ux_audit/`
-
-Key findings: Students ask "What should I do?" (clarity issue), phone-only equity concerns, ADHD support needed
-
-**Tier 1 - Critical (~10 hours)**: Mobile touch targets, clarity improvements, quiz anxiety reduction, OpenDyslexic font, focus mode with in-app resource viewer
-**Tier 2 - High Priority**: Draft saving, color blindness support, ARIA labels
-**Tier 3 - Major Restructure**: Topic → Task → Subtask redesign (5-20 min chunks) - Highest ROI
+**UX Audit:** `docs/archive/2026-01-27_ux_audit/`
+**Tier 1:** ✅ COMPLETE (7/7 tests pass) - See `ux_tier1_complete_summary.md`
+**Tier 2:** Draft saving, color blindness, practice mode, focus mode
+**Tier 3:** Topic→Task→Subtask redesign (5-20 min chunks)
 
 ## Features
 
@@ -30,6 +27,7 @@ Key findings: Students ask "What should I do?" (clarity issue), phone-only equit
 
 ## Improvements
 
+- onboarding page: preview and choose settings, quick tutorial/guide on how to use
 - ~~student view: show only the current (or the first) subtask of the active task~~ (Complete - commit 9720b41, see subtask_implementation_summary.md)
 - ~~admin view: assign particular subtasks to classes and to students~~ (Complete - commit 9720b41, see subtask_implementation_summary.md)
 - ~~Add #teilaufgabe anchor to student page. If the page reloads after a subtask has been completed, jump to this anchor directly.~~ (Complete - commit 4e64a18)

@@ -28,6 +28,51 @@ body {
     line-height: 1.5;
 }
 
+/* UX Tier 1: Global focus indicators (WCAG 2.1 AA) */
+*:focus {
+    outline: 2px solid #3b82f6;
+    outline-offset: 2px;
+}
+
+/* Remove focus outline for mouse users, keep for keyboard users */
+*:focus:not(:focus-visible) {
+    outline: none;
+}
+
+*:focus-visible {
+    outline: 2px solid #3b82f6;
+    outline-offset: 2px;
+}
+
+/* UX Tier 1: Easy Reading Mode (dyslexia support) */
+body.easy-reading-mode {
+    font-family: 'Comic Sans MS', 'Comic Sans', cursive, sans-serif;
+    font-size: 18px;
+    line-height: 2.0;
+    background-color: #FAF4E8; /* Cream background reduces glare */
+}
+
+body.easy-reading-mode .card {
+    background-color: #FAF4E8;
+}
+
+body.easy-reading-mode .task-content {
+    font-size: 18px;
+    line-height: 2.0;
+}
+
+body.easy-reading-mode p {
+    margin-bottom: 1.5em; /* Extra spacing between paragraphs */
+}
+
+body.easy-reading-mode h1,
+body.easy-reading-mode h2,
+body.easy-reading-mode h3,
+body.easy-reading-mode h4 {
+    line-height: 1.5;
+    margin-bottom: 1em;
+}
+
 .container {
     max-width: 1200px;
     margin: 0 auto;
@@ -1100,6 +1145,17 @@ tr.unsaved-row td {
     opacity: 0.8;
 }
 
+/* UX Tier 1: Focus indicators (WCAG 2.1 keyboard accessibility) */
+.dot:focus {
+    outline: 3px solid #3b82f6;
+    outline-offset: 2px;
+    transform: scale(1.2);
+}
+
+.dot:focus:not(:focus-visible) {
+    outline: none;
+}
+
 .dot.completed {
     background: #10b981;  /* Green for completed */
 }
@@ -1141,6 +1197,14 @@ tr.unsaved-row td {
     margin-bottom: 1.5rem;
 }
 
+/* UX Tier 1: Badge group for subtask info + time estimate */
+.task-badge-group {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    margin-bottom: 1.25rem;
+}
+
 .task-badge {
     display: inline-block;
     background: #3b82f6;
@@ -1151,8 +1215,14 @@ tr.unsaved-row td {
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.05em;
-    margin-bottom: 1.25rem;
     box-shadow: 0 2px 8px rgba(59, 130, 246, 0.25);
+}
+
+.task-badge.time-estimate {
+    background: #10b981;
+    text-transform: none;
+    letter-spacing: normal;
+    box-shadow: 0 2px 8px rgba(16, 185, 129, 0.25);
 }
 
 .task-content {
@@ -1646,5 +1716,19 @@ tr.unsaved-row td {
 
     .empty-state-text {
         font-size: 1rem;
+    }
+
+    /* UX Tier 1: Mobile touch targets (WCAG 2.1 AA - minimum 44x44px) */
+    .dot {
+        width: 44px;
+        height: 44px;
+    }
+
+    .progress-dots {
+        gap: 16px;  /* Increased from 8px to prevent accidental taps */
+    }
+
+    .dot.dot-quiz {
+        font-size: 1rem;  /* Scale quiz text with dot size */
     }
 }

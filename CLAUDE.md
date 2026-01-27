@@ -108,3 +108,36 @@ Flask serves static files (CSS, JS) with aggressive browser caching. Changes to 
 **Note**: Future improvement tracked in todo.md - replace with proper Cache-Control headers for cleaner solution.
 
 **See**: `frontend_patterns.md` for detailed patterns and examples
+
+### Subtask Visibility and Task Assignment
+When editing subtasks via `models.update_subtasks()`, be aware of cascading effects:
+- Deleting subtasks orphans `student_task.current_subtask_id` references
+- Deleting subtasks orphans `subtask_visibility` records (controls which subtasks students see)
+- **Solution**: Preserve visibility by subtask position/order, not by ID
+- Map old subtask position 1 → new subtask position 1 (even with different IDs)
+- Update `student_task.current_subtask_id` to point to first new subtask
+
+**See**: `docs/archive/2026-01-27_ux_tier1_implementation/task_visibility_bug_plan.md`
+
+### Easy Reading Mode Scope
+When adding user-specific features that affect template rendering:
+- Check `session.student_id` or `session.admin_id` to verify user type
+- Don't rely solely on presence of user object (admins may view student pages)
+- Example: `{% if student and student.easy_reading_mode and session.student_id %}`
+
+**See**: `docs/archive/2026-01-27_ux_tier1_implementation/easy_reading_mode_scope_fix.md`
+
+### Template Context Requirements
+When adding new features that use session/user data in base template:
+- Ensure ALL routes pass required objects (e.g., `student` object)
+- Routes that render templates: check what base.html needs
+- Example: student_klasse, student_quiz routes needed `student=student` in render_template
+
+### Database Migrations
+For encrypted SQLCipher databases:
+- Pass SQLCIPHER_KEY via environment variable
+- Migrations must handle both encrypted and unencrypted databases
+- Always run migrations BEFORE deploying code changes
+- Test migrations locally before production
+
+**See**: Migration scripts in project root (e.g., `migrate_add_time_estimates.py`)

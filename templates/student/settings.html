@@ -1,0 +1,38 @@
+{% extends 'base.html' %}
+
+{% block title %}Einstellungen - Lernmanager{% endblock %}
+
+{% block content %}
+<h1>⚙️ Einstellungen</h1>
+
+<div class="card">
+    <h2>Anzeigeoptionen</h2>
+
+    <form method="POST">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+        <div class="form-group">
+            <label class="checkbox-label">
+                <input type="checkbox" name="easy_reading_mode" {% if student.easy_reading_mode %}checked{% endif %}>
+                <span>
+                    <strong>Lesemodus aktivieren</strong>
+                    <small class="text-muted d-block" style="margin-top: 0.5rem;">
+                        Größere Schrift, mehr Abstand zwischen den Zeilen und eine augenschonende Hintergrundfarbe.
+                        Hilfreich bei Leseschwierigkeiten (Dyslexie).
+                    </small>
+                </span>
+            </label>
+        </div>
+
+        <button type="submit" class="btn btn-primary">Speichern</button>
+        <a href="{{ url_for('student_dashboard') }}" class="btn btn-secondary">Abbrechen</a>
+    </form>
+</div>
+
+{% if student.easy_reading_mode %}
+<div class="card mt-2" style="background-color: #d1fae5; border-color: #10b981;">
+    <p style="margin: 0;"><strong>✅ Lesemodus ist aktiv</strong></p>
+    <p style="margin-top: 0.5rem; margin-bottom: 0;">Du siehst jetzt größere Schrift und mehr Abstand. Wenn du das wieder ausschalten möchtest, entferne einfach den Haken oben.</p>
+</div>
+{% endif %}
+{% endblock %}

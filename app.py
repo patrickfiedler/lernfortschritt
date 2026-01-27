@@ -577,9 +577,10 @@ def admin_aufgabe_teilaufgaben(task_id):
         subtasks = models.get_subtasks(task_id)
         return jsonify(subtasks)
     else:
-        # POST: update subtasks
+        # POST: update subtasks (UX Tier 1: now includes time estimates)
         subtasks_list = request.form.getlist('subtasks[]')
-        models.update_subtasks(task_id, subtasks_list)
+        estimated_minutes_list = request.form.getlist('estimated_minutes[]')
+        models.update_subtasks(task_id, subtasks_list, estimated_minutes_list)
         flash('Teilaufgaben aktualisiert.', 'success')
         return redirect(url_for('admin_aufgabe_detail', task_id=task_id))
 
@@ -1284,6 +1285,7 @@ def student_bericht():
 @student_required
 def student_klasse(klasse_id):
     student_id = session['student_id']
+    student = models.get_student(student_id)
 
     # Authorization: verify student is in this class
     if not models.is_student_in_klasse(student_id, klasse_id):
@@ -1342,6 +1344,7 @@ def student_klasse(klasse_id):
     unterricht = models.get_student_unterricht(student_id, klasse_id)
 
     return render_template('student/klasse.html',
+                           student=student,
                            klasse=klasse,
                            task=task,
                            subtasks=subtasks,
@@ -1400,6 +1403,7 @@ def student_toggle_subtask(student_task_id, subtask_id):
 @student_required
 def student_quiz(student_task_id):
     student_id = session['student_id']
+    student = models.get_student(student_id)
 
     with models.db_session() as conn:
         # Verify this task belongs to the student
@@ -1494,13 +1498,19 @@ def student_quiz(student_task_id):
             ]
         }
 
+        # Get previous quiz attempts for improvement tracking (UX Tier 1)
+        all_attempts = models.get_quiz_attempts(student_task_id)
+        previous_attempt = all_attempts[1] if len(all_attempts) > 1 else None
+
         return render_template('student/quiz_result.html',
+                               student=student,
                                task=task,
                                quiz=display_quiz,
                                punkte=punkte,
                                max_punkte=max_punkte,
                                bestanden=bestanden,
-                               antworten=antworten)
+                               antworten=antworten,
+                               previous_attempt=previous_attempt)
 
     # GET: Shuffle questions and answers for display
     import random as quiz_random
@@ -1533,6 +1543,7 @@ def student_quiz(student_task_id):
     shuffled_quiz = {'questions': shuffled_questions}
 
     return render_template('student/quiz.html',
+                           student=student,
                            task=task,
                            quiz=shuffled_quiz,
                            student_task_id=student_task_id,
@@ -1550,6 +1561,22 @@ def student_selbstbewertung(unterricht_id):
     models.update_student_self_eval(unterricht_id, student_id, selbst_selbst, selbst_respekt)
     flash('Selbstbewertung gespeichert. ✅', 'success')
     return redirect(request.referrer or url_for('student_dashboard'))
+
+
+@app.route('/schueler/einstellungen', methods=['GET', 'POST'])
+@student_required
+def student_settings():
+    """Student settings page (UX Tier 1: Easy Reading Mode toggle)."""
+    student_id = session['student_id']
+
+    if request.method == 'POST':
+        easy_reading_mode = 1 if request.form.get('easy_reading_mode') == 'on' else 0
+        models.update_student_setting(student_id, 'easy_reading_mode', easy_reading_mode)
+        flash('Einstellungen gespeichert! ✅', 'success')
+        return redirect(url_for('student_settings'))
+
+    student = models.get_student(student_id)
+    return render_template('student/settings.html', student=student)
 
 
 # ============ Error Handlers ============
