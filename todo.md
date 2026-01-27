@@ -27,6 +27,24 @@
 - admin view: when batch-importing students, add the url of the app to each line, along with username and password (either hardcode lernen.mrfiedler.de, or maybe read from configuration or HTML headers?)
 - admin view: allow individual students to see all available tasks, but default to the current behaviour (students see only the active task)
 - research a better way and place to implement student self-evaluation (was: student page, at bottom)
+- ~~in the student view (next to 0 von 8 Aufgaben erledigt) the current task should have a visible margin or shadow to visually mark where students are~~ (Complete - current dot has colored ring border)
+- make admin top menu responsive - becomes crowded at 960px width (half of 1920px screen)
+- replace timestamp URL parameter cache-busting with Cache-Control headers (cleaner, no URL pollution) - see frontend_patterns.md for implementation
+
+
+## Subtask Management Enhancements (Test 8 findings)
+
+- Add "Activate All Compulsory" button to admin subtask config page:
+  - Requires task editor changes to mark subtasks as compulsory vs. bonus
+  - Button enables all compulsory subtasks in one click
+  - Useful for quick setup of new class assignments
+- Add "Manage Subtasks" link to admin class detail page (like on student detail page)
+- Show warning on class subtask config page if students have individual overrides:
+  - Display alert box below bulk action buttons (Alle aktivieren/deaktivieren) and above subtask checkboxes
+  - Format: "⚠️ X Schüler haben individuelle Einstellungen: [Student names with links]"
+  - Include clickable links to each student's individual config page
+  - Purpose: Prevent confusion when changing class-wide settings (changes won't affect students with overrides)
+- Update student dashboard to show visible subtask count instead of total count (currently shows "Fortschritt 0/8" but should show "0/5" if only 5 visible)
 
 ## Bugs
 
@@ -34,6 +52,7 @@
 - ~~Class assessment: make it obvious if data has been saved for a day (currently unclear - shows default 2/3 points for all dates)~~ (Fixed in student assessment improvements)
 - fix: consistently rename tasks -> topics and subtasks -> tasks (or their respective German equivalents for the frontend) throughout the whole app
 - fix: Make lesson comment saveable without saving student evaluation -> required in case a scheduled lesson does not take place
+- fix: current implementation does not treat compulsory and optional tasks differently, but it should -> there needs to be a clear setting in the task editor, and it should be obvious in the student view (maybe have yellow: open compulsory tasks, green: completed tasks, and rainbow colour spectrum for optional tasks)
 
 ## Notes
 

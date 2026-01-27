@@ -29,17 +29,20 @@
     </div>
     {% endif %}
 
-    <!-- Progress Section with Dots -->
-    {% if all_subtasks %}
+    <!-- Progress Section with Dots (Q5A: based on visible subtasks only) -->
+    {% if subtasks %}
     <div class="progress-section">
         <div class="progress-header">
             <div class="progress-text" id="progress-text">
-                {{ all_subtasks|selectattr('erledigt')|list|length }} von {{ all_subtasks|length }} Aufgaben erledigt
+                {{ subtasks|selectattr('erledigt')|list|length }} von {{ subtasks|length }} Aufgaben erledigt
             </div>
             <div class="progress-dots">
-                {% for sub in all_subtasks %}
-                <div class="dot {% if sub.erledigt %}completed{% elif current_subtask and sub.id == current_subtask.id %}current{% endif %}"
-                     data-subtask-index="{{ loop.index0 }}"></div>
+                {% for sub in subtasks %}
+                <div class="dot {% if sub.erledigt %}completed {% endif %}{% if current_subtask and sub.id == current_subtask.id %}current{% endif %}"
+                     data-subtask-index="{{ loop.index0 }}"
+                     data-subtask-id="{{ sub.id }}"
+                     onclick="navigateToSubtask({{ sub.id }})"
+                     title="Aufgabe {{ loop.index }}: {{ sub.beschreibung[:30] }}{% if sub.beschreibung|length > 30 %}...{% endif %}"></div>
                 {% endfor %}
                 {% if task.quiz_json %}
                 <div class="dot dot-quiz {% if task.quiz_bestanden %}completed{% endif %}"
@@ -50,83 +53,79 @@
     </div>
     {% endif %}
 
-    <!-- Current Task/Subtask -->
+    <!-- Current Task/Subtask with Side Navigation -->
     {% if current_subtask or subtasks %}
-    <div class="current-task">
-        {% if current_subtask %}
-        <!-- Show current subtask -->
-        <div class="task-badge">Aufgabe {{ current_subtask.reihenfolge }} von {{ all_subtasks|length }}</div>
-        {% elif subtasks %}
-        <!-- Legacy mode: show first uncompleted -->
-        {% set first_uncompleted = subtasks|rejectattr('erledigt')|list|first %}
-        {% if first_uncompleted %}
-        <div class="task-badge">Aktuelle Aufgabe</div>
-        {% endif %}
-        {% endif %}
+    {% set active_subtask = current_subtask or (subtasks|rejectattr('erledigt')|list|first) %}
+    {% set current_index = subtasks.index(active_subtask) if active_subtask and active_subtask in subtasks else 0 %}
+    {% set has_prev = current_index > 0 %}
+    {% set has_next = current_index < (subtasks|length - 1) %}
 
-        <div class="task-content markdown-content">
-            {% if current_subtask %}
-            {{ current_subtask.beschreibung | markdown }}
-            {% elif subtasks %}
-            {% set first_uncompleted = subtasks|rejectattr('erledigt')|list|first %}
-            {% if first_uncompleted %}
-            {{ first_uncompleted.beschreibung | markdown }}
+    <div class="task-navigation-wrapper">
+        <!-- Desktop: Left Button -->
+        <button class="nav-button-side nav-prev {% if not has_prev %}nav-disabled{% endif %}"
+                onclick="goToPrevSubtask({{ current_index }})"
+                {% if not has_prev %}disabled{% endif %}>
+            <span class="nav-arrow">←</span>
+            <span class="nav-label">Zurück</span>
+        </button>
+
+        <!-- Content (shows first on mobile, center on desktop) -->
+        <div class="current-task">
+            {% if active_subtask %}
+            <div class="task-badge">Aufgabe {{ current_index + 1 }} von {{ subtasks|length }}</div>
             {% endif %}
-            {% endif %}
-        </div>
 
-        <!-- Checkbox to mark complete -->
-        {% set active_subtask = current_subtask or (subtasks|rejectattr('erledigt')|list|first) %}
-        {% if active_subtask and not task.abgeschlossen %}
-        <div class="task-complete" onclick="document.getElementById('subtask-checkbox-{{ active_subtask.id }}').click()">
-            <input type="checkbox"
-                   id="subtask-checkbox-{{ active_subtask.id }}"
-                   class="subtask-checkbox"
-                   {% if active_subtask.erledigt %}checked{% endif %}
-                   onchange="toggleSubtask({{ task.id }}, {{ active_subtask.id }}, this.checked)"
-                   onclick="event.stopPropagation()">
-            <label for="subtask-checkbox-{{ active_subtask.id }}">Als erledigt markieren</label>
-        </div>
-        {% endif %}
-
-        <!-- Success Banner (hidden initially, shown after completing task) -->
-        <div class="success-banner" id="success-banner" style="display: none;">
-            <span class="success-icon">✓</span>
-            <div>Gut gemacht! Aufgabe erledigt.</div>
-        </div>
-
-        <!-- Task Navigation -->
-        <div class="task-navigation">
-            {% if all_subtasks and current_subtask %}
-            {% set current_index = all_subtasks|selectattr('id', 'equalto', current_subtask.id)|list|first %}
-            {% if current_index %}
-            {% set current_position = all_subtasks.index(current_index) %}
-            <div class="nav-buttons">
-                {% if current_position > 0 %}
-                <a href="?subtask_id={{ all_subtasks[current_position - 1].id }}" class="nav-button nav-prev">
-                    ← Vorherige
-                </a>
-                {% else %}
-                <span class="nav-button nav-disabled">← Vorherige</span>
-                {% endif %}
-
-                {% if current_position < all_subtasks|length - 1 %}
-                <a href="?subtask_id={{ all_subtasks[current_position + 1].id }}" class="nav-button nav-next">
-                    Nächste →
-                </a>
-                {% else %}
-                <span class="nav-button nav-disabled">Nächste →</span>
+            <div class="task-content markdown-content">
+                {% if active_subtask %}
+                {{ active_subtask.beschreibung | markdown }}
                 {% endif %}
             </div>
+
+            <!-- Checkbox to mark complete -->
+            {% if active_subtask and not task.abgeschlossen %}
+            <div class="task-complete" onclick="document.getElementById('subtask-checkbox-{{ active_subtask.id }}').click()">
+                <input type="checkbox"
+                       id="subtask-checkbox-{{ active_subtask.id }}"
+                       class="subtask-checkbox"
+                       {% if active_subtask.erledigt %}checked{% endif %}
+                       onchange="toggleSubtask({{ task.id }}, {{ active_subtask.id }}, this.checked)"
+                       onclick="event.stopPropagation()">
+                <label for="subtask-checkbox-{{ active_subtask.id }}">Als erledigt markieren</label>
+            </div>
             {% endif %}
-            {% endif %}
+
+            <!-- Success Banner (hidden initially, shown after completing task) -->
+            <div class="success-banner" id="success-banner" style="display: none;">
+                <span class="success-icon">✓</span>
+                <div>Gut gemacht! Aufgabe erledigt.</div>
+            </div>
+        </div>
+
+        <!-- Desktop: Right Button -->
+        <button class="nav-button-side nav-next {% if not has_next %}nav-disabled{% endif %}"
+                onclick="goToNextSubtask({{ current_index }})"
+                {% if not has_next %}disabled{% endif %}>
+            <span class="nav-arrow">→</span>
+            <span class="nav-label">Weiter</span>
+        </button>
+
+        <!-- Mobile: Button wrapper (appears after content) -->
+        <div class="nav-buttons-mobile">
+            <button class="nav-button-side nav-prev {% if not has_prev %}nav-disabled{% endif %}"
+                    onclick="goToPrevSubtask({{ current_index }})"
+                    {% if not has_prev %}disabled{% endif %}>
+                <span class="nav-arrow">←</span>
+                <span class="nav-label">Zurück</span>
+            </button>
+            <button class="nav-button-side nav-next {% if not has_next %}nav-disabled{% endif %}"
+                    onclick="goToNextSubtask({{ current_index }})"
+                    {% if not has_next %}disabled{% endif %}>
+                <span class="nav-arrow">→</span>
+                <span class="nav-label">Weiter</span>
+            </button>
         </div>
     </div>
 
-    <!-- Next Incomplete Button (hidden initially, shown after marking complete) -->
-    <button class="action-button" id="next-button" style="display: none;" onclick="goToNextIncomplete()">
-        Weiter zur nächsten unerledigten Aufgabe →
-    </button>
 
     <!-- Completed Subtasks (collapsible) -->
     {% if completed_subtasks %}
@@ -144,7 +143,12 @@
     {% endif %}
 
     {% else %}
-    <p class="text-muted">Keine Aufgaben definiert.</p>
+    <!-- Q3B: Encouraging Empty State -->
+    <div class="empty-state-card">
+        <div class="empty-state-icon">✨</div>
+        <h2 class="empty-state-title">Weitere Aufgaben kommen bald!</h2>
+        <p class="empty-state-text">Dein Lehrer bereitet sie vor.</p>
+    </div>
     {% endif %}
 
     <!-- Materials Section (collapsible, default open) -->
@@ -259,30 +263,32 @@ function toggleSubtask(studentTaskId, subtaskId, checked) {
     })
     .then(data => {
         if (checked) {
-            // Show success banner and next button
+            // Show success banner
             const successBanner = document.getElementById('success-banner');
-            const nextButton = document.getElementById('next-button');
-
             if (successBanner) {
                 successBanner.style.display = 'flex';
-            }
-            if (nextButton) {
-                nextButton.style.display = 'inline-block';
             }
 
             // Update progress dot
             const dots = document.querySelectorAll('.progress-dots .dot:not(.dot-quiz)');
             const currentDot = document.querySelector('.progress-dots .dot.current');
             if (currentDot) {
-                currentDot.classList.remove('current');
+                // Keep 'current' class, just add 'completed' class too
+                // Both classes together = green dot with border ring
                 currentDot.classList.add('completed');
             }
 
             // Update progress text
             updateProgressText();
         } else {
-            // Unchecking - reload page to reset state
-            setTimeout(() => location.reload(), 100);
+            // Unchecking - reload page to reset state (with cache-busting)
+            // Preserve current subtask_id parameter to stay on same task
+            setTimeout(() => {
+                const url = new URL(window.location);
+                url.searchParams.set('_t', Date.now());
+                // Note: subtask_id already in URL, so it's preserved
+                window.location.href = url.toString();
+            }, 100);
         }
     })
     .catch(err => {
@@ -306,10 +312,38 @@ function updateProgressText() {
     }
 }
 
-function goToNextIncomplete() {
-    // Reload page to show next incomplete subtask
-    // The backend will automatically show the next uncompleted subtask
-    location.reload();
+// Navigation: Build subtask ID array from template
+const subtaskIds = [{% for sub in subtasks %}{{ sub.id }}{% if not loop.last %}, {% endif %}{% endfor %}];
+const completedIds = new Set([{% for sub in completed_subtasks %}{{ sub.id }}{% if not loop.last %}, {% endif %}{% endfor %}]);
+
+function goToNextSubtask(currentIndex) {
+    // Navigate to next subtask in sequence (handles gaps in numbering)
+    if (currentIndex < subtaskIds.length - 1) {
+        const nextSubtaskId = subtaskIds[currentIndex + 1];
+        const url = new URL(window.location);
+        url.searchParams.set('subtask_id', nextSubtaskId);
+        url.searchParams.set('_t', Date.now());
+        window.location.href = url.toString();
+    }
+}
+
+function goToPrevSubtask(currentIndex) {
+    // Navigate to previous subtask in sequence
+    if (currentIndex > 0) {
+        const prevSubtaskId = subtaskIds[currentIndex - 1];
+        const url = new URL(window.location);
+        url.searchParams.set('subtask_id', prevSubtaskId);
+        url.searchParams.set('_t', Date.now());
+        window.location.href = url.toString();
+    }
+}
+
+function navigateToSubtask(subtaskId) {
+    // Navigate to specific subtask by clicking its dot
+    const url = new URL(window.location);
+    url.searchParams.set('subtask_id', subtaskId);
+    url.searchParams.set('_t', Date.now());
+    window.location.href = url.toString();
 }
 
 // Smooth scroll to element on page load if hash is present

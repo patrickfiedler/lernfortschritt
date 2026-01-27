@@ -321,10 +321,11 @@ def admin_klasse_aufgabe_zuweisen(klasse_id):
         # Convert to int, handle empty string for subtask_id
         subtask_id_int = int(subtask_id) if subtask_id and subtask_id.strip() else None
         models.assign_task_to_klasse(klasse_id, int(task_id), subtask_id_int)
-        if subtask_id_int:
-            flash('Aufgabe und Teilaufgabe für alle Schüler zugewiesen. ✅', 'success')
-        else:
-            flash('Aufgabe für alle Schüler zugewiesen. ✅', 'success')
+
+        # Q1A: Interrupt workflow - redirect to subtask configuration
+        flash('Aufgabe zugewiesen. Bitte wähle nun die sichtbaren Teilaufgaben. ✅', 'success')
+        return redirect(url_for('admin_teilaufgaben_verwaltung_klasse', klasse_id=klasse_id, task_id=task_id))
+
     return redirect(url_for('admin_klasse_detail', klasse_id=klasse_id))
 
 
@@ -740,6 +741,180 @@ def download_material(material_id):
         abort(500)
 
 
+# ============ Admin: Teilaufgaben-Verwaltung (Subtask Visibility) ============
+
+@app.route('/admin/teilaufgaben-verwaltung/klasse/<int:klasse_id>')
+@admin_required
+def admin_teilaufgaben_verwaltung_klasse(klasse_id):
+    """Manage subtask visibility for a class.
+
+    Implements Q1A (interrupt workflow) and Q2B (two-column UI).
+    """
+    task_id = request.args.get('task_id', type=int)
+    if not task_id:
+        flash('Keine Aufgabe ausgewählt.', 'danger')
+        return redirect(url_for('admin_klasse_detail', klasse_id=klasse_id))
+
+    # Get class and task info
+    klasse = models.get_klasse(klasse_id)
+    task = models.get_task(task_id)
+    if not klasse or not task:
+        flash('Klasse oder Aufgabe nicht gefunden.', 'danger')
+        return redirect(url_for('admin_klassen'))
+
+    # Get all subtasks for this task
+    subtasks = models.get_subtasks(task_id)
+
+    # Get current visibility settings for this class
+    visibility = models.get_subtask_visibility_settings(klasse_id=klasse_id, task_id=task_id)
+
+    return render_template('admin/teilaufgaben_verwaltung.html',
+                           context='class',
+                           klasse=klasse,
+                           task=task,
+                           subtasks=subtasks,
+                           visibility=visibility)
+
+
+@app.route('/admin/teilaufgaben-verwaltung/schueler/<int:student_id>')
+@admin_required
+def admin_teilaufgaben_verwaltung_schueler(student_id):
+    """Manage subtask visibility for an individual student.
+
+    Implements Q2B (two-column UI showing class vs student settings).
+    """
+    try:
+        task_id = request.args.get('task_id', type=int)
+        klasse_id = request.args.get('klasse_id', type=int)
+
+        print(f"DEBUG: student_id={student_id}, task_id={task_id}, klasse_id={klasse_id}", flush=True)
+
+        if not task_id or not klasse_id:
+            flash('Aufgabe oder Klasse nicht angegeben.', 'danger')
+            return redirect(url_for('admin_schueler_detail', student_id=student_id))
+
+        # Get student, class, and task info
+        student = models.get_student(student_id)
+        klasse = models.get_klasse(klasse_id)
+        task = models.get_task(task_id)
+
+        print(f"DEBUG: student={student}, klasse={klasse}, task={task}", flush=True)
+
+        if not student or not klasse or not task:
+            flash('Schüler, Klasse oder Aufgabe nicht gefunden.', 'danger')
+            return redirect(url_for('admin_schueler_detail', student_id=student_id))
+
+        # Get all subtasks for this task
+        subtasks = models.get_subtasks(task_id)
+        print(f"DEBUG: subtasks count={len(subtasks)}", flush=True)
+
+        # Get class visibility settings (for left column - Q2B)
+        class_visibility = models.get_subtask_visibility_settings(klasse_id=klasse_id, task_id=task_id)
+        print(f"DEBUG: class_visibility={class_visibility}", flush=True)
+
+        # Get student visibility settings (for right column - Q2B)
+        student_visibility = models.get_subtask_visibility_settings(student_id=student_id, task_id=task_id)
+        print(f"DEBUG: student_visibility={student_visibility}", flush=True)
+
+        return render_template('admin/teilaufgaben_verwaltung.html',
+                               context='student',
+                               student=student,
+                               klasse=klasse,
+                               task=task,
+                               subtasks=subtasks,
+                               class_visibility=class_visibility,
+                               student_visibility=student_visibility)
+    except Exception as e:
+        print(f"ERROR in admin_teilaufgaben_verwaltung_schueler: {e}", flush=True)
+        import traceback
+        traceback.print_exc()
+        raise
+
+
+@app.route('/admin/teilaufgaben-verwaltung/speichern', methods=['POST'])
+@admin_required
+def admin_teilaufgaben_verwaltung_speichern():
+    """Save subtask visibility settings.
+
+    Handles both class-wide and student-specific settings.
+    Implements Q4B (enable current only - receives explicit list from UI).
+    """
+    data = request.get_json()
+
+    context = data.get('context')  # 'class' or 'student'
+    klasse_id = data.get('klasse_id')
+    student_id = data.get('student_id')
+    task_id = data.get('task_id')
+    subtask_settings = data.get('subtask_settings', {})  # {subtask_id: enabled}
+
+    admin_id = session.get('admin_id')
+
+    try:
+        if context == 'class':
+            # Save class-wide settings
+            for subtask_id_str, enabled in subtask_settings.items():
+                subtask_id = int(subtask_id_str)
+                models.set_subtask_visibility_for_class(klasse_id, subtask_id, enabled, admin_id)
+
+            return jsonify({'success': True, 'message': 'Einstellungen für die Klasse gespeichert.'})
+
+        elif context == 'student':
+            # Save student-specific overrides (only when different from class default)
+            # First, get class visibility settings to compare
+            class_visibility = models.get_subtask_visibility_settings(klasse_id=klasse_id, task_id=task_id)
+
+            print(f"DEBUG SAVE: Received subtask_settings={subtask_settings}", flush=True)
+            print(f"DEBUG SAVE: class_visibility={class_visibility}", flush=True)
+
+            with models.db_session() as conn:
+                for subtask_id_str, enabled in subtask_settings.items():
+                    subtask_id = int(subtask_id_str)
+                    class_enabled = class_visibility.get(subtask_id, {}).get('enabled', False)
+
+                    if enabled == class_enabled:
+                        # Matches class default - remove any student override
+                        conn.execute('''
+                            DELETE FROM subtask_visibility
+                            WHERE student_id = ? AND subtask_id = ?
+                        ''', (student_id, subtask_id))
+                    else:
+                        # Differs from class default - create/update student override
+                        # Delete existing first
+                        conn.execute('''
+                            DELETE FROM subtask_visibility
+                            WHERE student_id = ? AND subtask_id = ?
+                        ''', (student_id, subtask_id))
+                        # Insert new override
+                        conn.execute('''
+                            INSERT INTO subtask_visibility (subtask_id, student_id, enabled, set_by_admin_id)
+                            VALUES (?, ?, ?, ?)
+                        ''', (subtask_id, student_id, 1 if enabled else 0, admin_id))
+
+            return jsonify({'success': True, 'message': 'Einstellungen für den Schüler gespeichert.'})
+
+        else:
+            return jsonify({'success': False, 'message': 'Ungültiger Kontext.'}), 400
+
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'Fehler beim Speichern: {str(e)}'}), 500
+
+
+@app.route('/admin/teilaufgaben-verwaltung/reset-to-class', methods=['POST'])
+@admin_required
+def admin_teilaufgaben_verwaltung_reset():
+    """Reset student-specific overrides to class defaults."""
+    data = request.get_json()
+
+    student_id = data.get('student_id')
+    task_id = data.get('task_id')
+
+    try:
+        models.reset_subtask_visibility_to_class_default(student_id, task_id)
+        return jsonify({'success': True, 'message': 'Auf Klassenstandard zurückgesetzt.'})
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'Fehler: {str(e)}'}), 500
+
+
 # ============ Admin: Wahlpflicht (Elective Groups) ============
 
 @app.route('/admin/wahlpflicht')
@@ -1048,10 +1223,21 @@ def student_dashboard():
     for klasse in klassen:
         task = models.get_student_task(student_id, klasse['id'])
         if task:
-            subtasks = models.get_student_subtask_progress(task['id'])
-            task['subtasks'] = subtasks
-            task['total_subtasks'] = len(subtasks)
-            task['completed_subtasks'] = sum(1 for s in subtasks if s['erledigt'])
+            # Get only VISIBLE subtasks for this student
+            visible_subtasks = models.get_visible_subtasks_for_student(
+                student_id, klasse['id'], task['task_id']
+            )
+            visible_subtask_ids = {s['id'] for s in visible_subtasks}
+
+            # Get progress for all subtasks
+            all_subtasks = models.get_student_subtask_progress(task['id'])
+
+            # Filter to show only visible subtasks with their progress
+            visible_with_progress = [s for s in all_subtasks if s['id'] in visible_subtask_ids]
+
+            task['subtasks'] = visible_with_progress
+            task['total_subtasks'] = len(visible_with_progress)
+            task['completed_subtasks'] = sum(1 for s in visible_with_progress if s['erledigt'])
         tasks_by_klasse[klasse['id']] = task
 
     return render_template('student/dashboard.html', student=student, klassen=klassen,
@@ -1118,40 +1304,39 @@ def student_klasse(klasse_id):
     quiz_attempts = []
 
     if task:
+        # Get ALL subtasks with completion status
         all_subtasks = models.get_student_subtask_progress(task['id'])
         materials = models.get_materials(task['task_id'])
         quiz_attempts = models.get_quiz_attempts(task['id'])
 
+        # NEW: Get visible subtasks based on visibility rules (Q5A, Q6A)
+        visible_subtask_ids = [s['id'] for s in models.get_visible_subtasks_for_student(
+            student_id, klasse_id, task['task_id']
+        )]
+
+        # Filter all_subtasks to only visible ones
+        if visible_subtask_ids:
+            # Show only visible subtasks
+            subtasks = [st for st in all_subtasks if st['id'] in visible_subtask_ids]
+        else:
+            # Q3B: Empty state - no subtasks enabled
+            # Template will show encouraging message
+            subtasks = []
+
         # Check if specific subtask requested via URL parameter
         requested_subtask_id = request.args.get('subtask_id', type=int)
-
-        # Filter subtasks based on current_subtask_id or requested subtask
-        if requested_subtask_id:
-            # Show requested subtask (for navigation)
-            for st in all_subtasks:
+        if requested_subtask_id and requested_subtask_id in visible_subtask_ids:
+            # Find and set current subtask if it's visible
+            for st in subtasks:
                 if st['id'] == requested_subtask_id:
                     current_subtask = st
-                    subtasks = [st]
                     break
-        elif task.get('current_subtask_id'):
-            # Show only current subtask
-            for st in all_subtasks:
-                if st['id'] == task['current_subtask_id']:
-                    current_subtask = st  # Use the one from all_subtasks with erledigt field
-                    subtasks = [st]
-                    break
+        elif subtasks:
+            # Default to first visible subtask
+            current_subtask = subtasks[0]
 
-        # Always calculate completed_subtasks the same way - all completed except the one being viewed
-        if current_subtask and current_subtask.get('erledigt'):
-            # If viewing a completed task, exclude it from the "already completed" list
-            completed_subtasks = [st for st in all_subtasks if st['erledigt'] and st['id'] != current_subtask['id']]
-        else:
-            # If viewing an incomplete task, show all completed tasks
-            completed_subtasks = [st for st in all_subtasks if st['erledigt']]
-
-        # Fallback: If no current_subtask found, show all subtasks (backward compatible)
-        if not current_subtask:
-            subtasks = all_subtasks
+        # Q5A: Calculate completed based on VISIBLE subtasks only
+        completed_subtasks = [st for st in subtasks if st['erledigt']]
 
     # Get lesson history
     unterricht = models.get_student_unterricht(student_id, klasse_id)
@@ -1179,6 +1364,10 @@ def student_toggle_subtask(student_task_id, subtask_id):
 
     erledigt = request.json.get('erledigt', False)
     models.toggle_student_subtask(student_task_id, subtask_id, erledigt)
+
+    # Invalidate cache so next page load shows fresh data
+    cache_key = f'student_subtask_progress_{student_task_id}'
+    cache.delete(cache_key)
 
     # Log subtask completion
     if erledigt:

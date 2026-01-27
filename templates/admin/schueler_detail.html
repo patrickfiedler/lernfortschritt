@@ -154,6 +154,40 @@
     {% endif %}
 </div>
 
+<!-- Subtask Visibility Management -->
+<div class="card mt-2">
+    <div class="card-header">📋 Teilaufgaben-Sichtbarkeit verwalten</div>
+    {% for klasse in klassen %}
+    {% set task = student_tasks.get(klasse.id) %}
+    {% if task %}
+    <div class="mb-1" style="padding: 0.75rem; background: #f9fafb; border-radius: 0.375rem;">
+        <div class="flex flex-between flex-center">
+            <div>
+                <strong>{{ klasse.name }}: {{ task.name }}</strong>
+                <p class="text-muted" style="font-size: 0.85em; margin-top: 0.25rem;">
+                    Individuelle Teilaufgaben-Einstellungen für {{ student.vorname }}
+                </p>
+            </div>
+            <a href="{{ url_for('admin_teilaufgaben_verwaltung_schueler', student_id=student.id, task_id=task.task_id, klasse_id=klasse.id) }}"
+               class="btn btn-primary">
+                ⚙️ Teilaufgaben konfigurieren
+            </a>
+        </div>
+    </div>
+    {% endif %}
+    {% endfor %}
+    {% set has_tasks = namespace(value=false) %}
+    {% for klasse in klassen %}
+        {% set task = student_tasks.get(klasse.id) %}
+        {% if task %}
+            {% set has_tasks.value = true %}
+        {% endif %}
+    {% endfor %}
+    {% if not klassen or not has_tasks.value %}
+    <p class="text-muted">Keine aktiven Aufgaben.</p>
+    {% endif %}
+</div>
+
 <!-- Manual Task Completion -->
 <div class="card mt-2">
     <div class="card-header">✅ Aufgabe manuell abschließen</div>

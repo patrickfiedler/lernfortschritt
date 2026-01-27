@@ -1168,6 +1168,198 @@ def assign_task_to_klasse(klasse_id, task_id, subtask_id=None):
             ''', (s['student_id'], klasse_id, task_id, subtask_id))
 
 
+# ============================================================================
+# Subtask Visibility Management
+# ============================================================================
+
+def get_visible_subtasks_for_student(student_id, klasse_id, task_id):
+    """Get list of subtasks visible to a student based on visibility rules.
+
+    Rules priority:
+    1. Student-specific rules (if they exist)
+    2. Class-wide rules (if no student rule exists)
+    3. Default: NO subtasks visible (admin must explicitly enable)
+
+    Args:
+        student_id: The student ID
+        klasse_id: The class ID the student is viewing the task in
+        task_id: The task ID
+
+    Returns:
+        List of subtask dicts that are visible to this student
+    """
+    with db_session() as conn:
+        rows = conn.execute('''
+            SELECT s.* FROM subtask s
+            WHERE s.task_id = ?
+            AND s.id IN (
+                -- Student-specific rules (highest priority)
+                SELECT sv.subtask_id FROM subtask_visibility sv
+                WHERE sv.student_id = ? AND sv.enabled = 1
+
+                UNION
+
+                -- Class rules (if no student-specific rule exists)
+                SELECT sv.subtask_id FROM subtask_visibility sv
+                WHERE sv.klasse_id = ? AND sv.enabled = 1
+                AND NOT EXISTS (
+                    SELECT 1 FROM subtask_visibility sv2
+                    WHERE sv2.subtask_id = sv.subtask_id
+                    AND sv2.student_id = ?
+                )
+            )
+            ORDER BY s.reihenfolge
+        ''', (task_id, student_id, klasse_id, student_id)).fetchall()
+        return [dict(r) for r in rows]
+
+
+def get_subtask_visibility_settings(klasse_id=None, student_id=None, task_id=None):
+    """Get current visibility settings for a context.
+
+    Args:
+        klasse_id: Optional class ID to filter by
+        student_id: Optional student ID to filter by
+        task_id: Optional task ID to filter by (gets subtasks for this task)
+
+    Returns:
+        Dict mapping subtask_id -> {'enabled': bool, 'source': 'class'|'student'}
+    """
+    with db_session() as conn:
+        # Build query based on context
+        conditions = []
+        params = []
+
+        if task_id:
+            # Get all subtasks for this task first
+            subtasks = conn.execute(
+                'SELECT id FROM subtask WHERE task_id = ? ORDER BY reihenfolge',
+                (task_id,)
+            ).fetchall()
+            subtask_ids = [s['id'] for s in subtasks]
+        else:
+            subtask_ids = None
+
+        # Query visibility rules
+        query = 'SELECT subtask_id, enabled, klasse_id, student_id FROM subtask_visibility WHERE 1=1'
+
+        if klasse_id is not None:
+            query += ' AND klasse_id = ?'
+            params.append(klasse_id)
+
+        if student_id is not None:
+            query += ' AND student_id = ?'
+            params.append(student_id)
+
+        if subtask_ids:
+            placeholders = ','.join('?' * len(subtask_ids))
+            query += f' AND subtask_id IN ({placeholders})'
+            params.extend(subtask_ids)
+
+        rows = conn.execute(query, params).fetchall()
+
+        # Build result mapping
+        result = {}
+        for r in rows:
+            source = 'student' if r['student_id'] else 'class'
+            result[r['subtask_id']] = {
+                'enabled': bool(r['enabled']),
+                'source': source
+            }
+
+        return result
+
+
+def set_subtask_visibility_for_class(klasse_id, subtask_id, enabled, admin_id):
+    """Set visibility of a subtask for an entire class.
+
+    Args:
+        klasse_id: The class ID
+        subtask_id: The subtask ID
+        enabled: True to enable, False to disable
+        admin_id: Admin making the change (for audit trail)
+    """
+    with db_session() as conn:
+        # Delete existing rule for this class+subtask
+        conn.execute('''
+            DELETE FROM subtask_visibility
+            WHERE klasse_id = ? AND subtask_id = ?
+        ''', (klasse_id, subtask_id))
+
+        # Insert new rule
+        conn.execute('''
+            INSERT INTO subtask_visibility (subtask_id, klasse_id, enabled, set_by_admin_id)
+            VALUES (?, ?, ?, ?)
+        ''', (subtask_id, klasse_id, 1 if enabled else 0, admin_id))
+
+
+def set_subtask_visibility_for_student(student_id, subtask_id, enabled, admin_id):
+    """Set visibility of a subtask for an individual student.
+
+    This creates a student-specific override that takes priority over class rules.
+
+    Args:
+        student_id: The student ID
+        subtask_id: The subtask ID
+        enabled: True to enable, False to disable
+        admin_id: Admin making the change (for audit trail)
+    """
+    with db_session() as conn:
+        # Delete existing rule for this student+subtask
+        conn.execute('''
+            DELETE FROM subtask_visibility
+            WHERE student_id = ? AND subtask_id = ?
+        ''', (student_id, subtask_id))
+
+        # Insert new rule
+        conn.execute('''
+            INSERT INTO subtask_visibility (subtask_id, student_id, enabled, set_by_admin_id)
+            VALUES (?, ?, ?, ?)
+        ''', (subtask_id, student_id, 1 if enabled else 0, admin_id))
+
+
+def bulk_set_subtask_visibility(klasse_id=None, student_id=None, subtask_ids=None, enabled=True, admin_id=None):
+    """Bulk set visibility for multiple subtasks.
+
+    Args:
+        klasse_id: If set, applies to entire class
+        student_id: If set, applies to individual student
+        subtask_ids: List of subtask IDs to update
+        enabled: True to enable, False to disable
+        admin_id: Admin making the change
+    """
+    if not subtask_ids:
+        return
+
+    with db_session() as conn:
+        for subtask_id in subtask_ids:
+            if klasse_id:
+                set_subtask_visibility_for_class(klasse_id, subtask_id, enabled, admin_id)
+            elif student_id:
+                set_subtask_visibility_for_student(student_id, subtask_id, enabled, admin_id)
+
+
+def reset_subtask_visibility_to_class_default(student_id, task_id):
+    """Remove all student-specific overrides for a task, reverting to class defaults.
+
+    Args:
+        student_id: The student ID
+        task_id: The task ID
+    """
+    with db_session() as conn:
+        # Get all subtasks for this task
+        subtasks = conn.execute(
+            'SELECT id FROM subtask WHERE task_id = ?',
+            (task_id,)
+        ).fetchall()
+
+        # Delete student-specific rules
+        for s in subtasks:
+            conn.execute('''
+                DELETE FROM subtask_visibility
+                WHERE student_id = ? AND subtask_id = ?
+            ''', (student_id, s['id']))
+
+
 def get_student_task(student_id, klasse_id):
     """Get student's current task for a class."""
     # Cache for 1 minute if cache is available (high volatility - tasks assigned/completed frequently)
@@ -1339,20 +1531,43 @@ def mark_task_complete(student_task_id, manual=False):
 
 
 def check_task_completion(student_task_id):
-    """Check if task should be marked complete (all subtasks + quiz passed via traditional or game mode)."""
-    with db_session() as conn:
-        # Check all subtasks completed
-        subtasks = conn.execute('''
-            SELECT COUNT(*) as total,
-                   SUM(CASE WHEN COALESCE(ss.erledigt, 0) = 1 THEN 1 ELSE 0 END) as completed
-            FROM subtask sub
-            JOIN student_task st ON sub.task_id = st.task_id
-            LEFT JOIN student_subtask ss ON sub.id = ss.subtask_id AND ss.student_task_id = ?
-            WHERE st.id = ?
-        ''', (student_task_id, student_task_id)).fetchone()
+    """Check if task should be marked complete (all VISIBLE subtasks + quiz passed).
 
-        if subtasks['total'] > 0 and subtasks['total'] != subtasks['completed']:
+    Q5A Implementation: Only counts visible subtasks for completion.
+    """
+    with db_session() as conn:
+        # Get student_id, klasse_id, task_id for visibility check
+        student_task_info = conn.execute('''
+            SELECT student_id, klasse_id, task_id FROM student_task WHERE id = ?
+        ''', (student_task_id,)).fetchone()
+
+        if not student_task_info:
             return False
+
+        student_id = student_task_info['student_id']
+        klasse_id = student_task_info['klasse_id']
+        task_id = student_task_info['task_id']
+
+        # Q5A: Get visible subtasks for this student
+        visible_subtasks = get_visible_subtasks_for_student(student_id, klasse_id, task_id)
+        visible_subtask_ids = [s['id'] for s in visible_subtasks]
+
+        if not visible_subtask_ids:
+            # No visible subtasks - consider complete if quiz passed (or no quiz)
+            pass
+        else:
+            # Check only VISIBLE subtasks completed
+            placeholders = ','.join('?' * len(visible_subtask_ids))
+            subtasks = conn.execute(f'''
+                SELECT COUNT(*) as total,
+                       SUM(CASE WHEN COALESCE(ss.erledigt, 0) = 1 THEN 1 ELSE 0 END) as completed
+                FROM subtask sub
+                LEFT JOIN student_subtask ss ON sub.id = ss.subtask_id AND ss.student_task_id = ?
+                WHERE sub.id IN ({placeholders})
+            ''', [student_task_id] + visible_subtask_ids).fetchone()
+
+            if subtasks['total'] > 0 and subtasks['total'] != subtasks['completed']:
+                return False
 
         # Check quiz passed (traditional method)
         quiz_passed = conn.execute('''
