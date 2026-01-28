@@ -6,10 +6,6 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>{% block title %}Lernmanager{% endblock %}</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=2026012708">
-    <!-- UX Tier 1: OpenDyslexic font for easy reading mode -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Comic+Sans+MS&display=swap" rel="stylesheet">
     <script src="{{ url_for('static', filename='js/marked.min.js') }}"></script>
 </head>
 <body{% if student and student.easy_reading_mode and session.student_id %} class="easy-reading-mode"{% endif %}>

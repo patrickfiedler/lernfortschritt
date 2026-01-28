@@ -30,6 +30,7 @@
 
 ## Improvements
 
+- student onboarding page: asks students about their accessibility preferences (easy reading mode, etc.) so students can learn that these options exist; make it so that it reminds students when new accessibility options become available
 - onboarding page: preview and choose settings, quick tutorial/guide on how to use
 - ~~student view: show only the current (or the first) subtask of the active task~~ (Complete - commit 9720b41, see subtask_implementation_summary.md)
 - ~~admin view: assign particular subtasks to classes and to students~~ (Complete - commit 9720b41, see subtask_implementation_summary.md)
