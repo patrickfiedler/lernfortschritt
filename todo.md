@@ -38,13 +38,13 @@
 - ~~Student experience redesign: card-based layout, "Why learn this?" purpose banner, progress dots, collapsible sections~~ (Complete - commit 7253d66, hybrid mockup design implemented)
 - ~~Database performance optimization: request-level connection caching~~ (Complete - commit 721fbc9, comprehensive performance optimizations with Flask-Caching, HTTP caching headers, Gzip compression)
 - (low priority, optional) student view: show visual learning map of open tasks and how they connect to each other; for the moment only for informational purposes
+- (low priority, performance) database query optimization: reduce N+1 query patterns to improve page load times with encrypted database → see query_optimization_analysis.md (admin dashboard: 850ms → 170ms potential, ~4-6 hours effort)
 - admin view: when batch-importing students, add the url of the app to each line, along with username and password (either hardcode lernen.mrfiedler.de, or maybe read from configuration or HTML headers?)
 - admin view: allow individual students to see all available tasks, but default to the current behaviour (students see only the active task)
 - research a better way and place to implement student self-evaluation (was: student page, at bottom)
 - How can we show more than one active task to the student at any one time, i.e. to adapt to current special occasions like contests or short-term work sprints to improve marks? -> investigate
 - ~~in the student view (next to 0 von 8 Aufgaben erledigt) the current task should have a visible margin or shadow to visually mark where students are~~ (Complete - current dot has colored ring border)
 - make admin top menu responsive - becomes crowded at 960px width (half of 1920px screen)
-- replace timestamp URL parameter cache-busting with Cache-Control headers (cleaner, no URL pollution) - see frontend_patterns.md for implementation
 - make progress dots slightly larger (double) in desktop view
 - add favicon to the app
 
