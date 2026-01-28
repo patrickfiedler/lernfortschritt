@@ -51,7 +51,7 @@ def markdown_filter(text):
     """Convert markdown text to HTML."""
     if not text:
         return ''
-    html = md.markdown(text, extensions=['nl2br', 'fenced_code', 'tables'])
+    html = md.markdown(text, extensions=['nl2br', 'fenced_code', 'tables', 'sane_lists'], tab_length=3)
     return Markup(html)
 
 
