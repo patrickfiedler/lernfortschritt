@@ -9,7 +9,8 @@
 - Code Review
 - Plan comprehensive simplification and testing of the admin interface: reason some options like visible tasks hidden behind too many submenus/subpages, some actions fail (moving students), ...
 - App needs more focus in the student view for the actual task and less visibility for nice-to-have but effectively less important information; also student dashboard does still not make it clear enough where learning actually starts (maybe skip dashboard and display current tasks directly?) -> based on common student feedback "What should I do?"
-- Investigate if the caching mechanism is actually worth it, considering many problems arose from caching and required cache-busting strategies to fix; maybe as short-term fix a simple option to enable or disable caching can be implemented? (only if low effort); this likely requires a comprehensive investigation of the app's behaviour
+- ~~Investigate if the caching mechanism is actually worth it~~ (Complete - removed all caching, see caching_investigation.md. Testing in production on remove-caching branch)
+- Investigate Claude Code and/or Claude API support for task editing and rewriting/rearranging existing content to match restructuring to topic->task->subtask schema with smaller subtask units -> compare respective UX Tier 3 goals
 
 ## UX/Accessibility Improvements
 **UX Audit:** `docs/archive/2026-01-27_ux_audit/`
@@ -43,9 +44,9 @@
 - How can we show more than one active task to the student at any one time, i.e. to adapt to current special occasions like contests or short-term work sprints to improve marks? -> investigate
 - ~~in the student view (next to 0 von 8 Aufgaben erledigt) the current task should have a visible margin or shadow to visually mark where students are~~ (Complete - current dot has colored ring border)
 - make admin top menu responsive - becomes crowded at 960px width (half of 1920px screen)
-- replace timestamp URL parameter cache-busting with Cache-Control headers (cleaner, no URL pollution) - see frontend_patterns.md for implementation
 - make progress dots slightly larger (double) in desktop view
 - add favicon to the app
+- change workflow from task→task→task→...→quiz to task→quiz→task→quiz→task→...; or allow for such workflows where appropriate → relates to student-facing usability, clarity and actionability
 
 
 ## Subtask Management Enhancements (Test 8 findings)
