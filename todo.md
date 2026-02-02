@@ -2,6 +2,7 @@
 
 ## High Priority
 
+- **Merge remove-caching branch to main and deploy to server** - Performance analysis complete (see benchmark_analysis_2026-01-28.md), caching adds complexity without meaningful benefit, AES-NI hardware acceleration already optimal
 - ~~502 error when I try to upload a file~~ (Fixed - was database permissions issue)
 - ~~error logging functionality~~ (Complete - Phase 4, commit bd64505)
 - ~~Remove "Selbstbewertung pro Unterricht" from student page~~ (Complete - commit 4e64a18)
@@ -9,7 +10,7 @@
 - Code Review
 - Plan comprehensive simplification and testing of the admin interface: reason some options like visible tasks hidden behind too many submenus/subpages, some actions fail (moving students), ...
 - App needs more focus in the student view for the actual task and less visibility for nice-to-have but effectively less important information; also student dashboard does still not make it clear enough where learning actually starts (maybe skip dashboard and display current tasks directly?) -> based on common student feedback "What should I do?"
-- Investigate if the caching mechanism is actually worth it, considering many problems arose from caching and required cache-busting strategies to fix; maybe as short-term fix a simple option to enable or disable caching can be implemented? (only if low effort); this likely requires a comprehensive investigation of the app's behaviour
+- ~~Investigate if the caching mechanism is actually worth it~~ (Complete - see caching_investigation.md, benchmark_analysis_2026-01-28.md; recommendation: remove caching; testing on remove-caching branch)
 
 ## UX/Accessibility Improvements
 **UX Audit:** `docs/archive/2026-01-27_ux_audit/`

@@ -8,9 +8,9 @@ Replace broken Google Fonts loading with locally-hosted OpenDyslexic font for ac
 - [x] Phase 2: Research font options (see font_research_notes.md)
 - [x] Phase 3: Remove Google Fonts link from base.html
 - [x] Phase 4: Update CSS with better font stack (system fonts + better spacing)
-- [ ] Phase 5: Test and verify
+- [x] Phase 5: Test and verify
 - [x] Phase 6: Add onboarding page todo
-- [ ] Phase 7: Commit changes
+- [x] Phase 7: Commit changes (commit 4cad39b, pushed to main)
 
 ## Key Questions
 1. What font should we actually use for easy reading mode? (OpenDyslexic is the standard)
