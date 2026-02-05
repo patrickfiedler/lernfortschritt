@@ -310,7 +310,7 @@ def admin_klasse_aufgabe_zuweisen(klasse_id):
     if task_id:
         # Convert to int, handle empty string for subtask_id
         subtask_id_int = int(subtask_id) if subtask_id and subtask_id.strip() else None
-        models.assign_task_to_klasse(klasse_id, int(task_id), subtask_id_int)
+        models.assign_task_to_klasse(klasse_id, int(task_id), subtask_id_int, admin_id=session['admin_id'])
 
         # Q1A: Interrupt workflow - redirect to subtask configuration
         flash('Aufgabe zugewiesen. Bitte wähle nun die sichtbaren Teilaufgaben. ✅', 'success')
@@ -396,7 +396,7 @@ def admin_schueler_aufgabe_zuweisen(student_id):
     if klasse_id and task_id:
         # Convert to int, handle empty string for subtask_id
         subtask_id_int = int(subtask_id) if subtask_id and subtask_id.strip() else None
-        models.assign_task_to_student(student_id, int(klasse_id), int(task_id), subtask_id_int)
+        models.assign_task_to_student(student_id, int(klasse_id), int(task_id), subtask_id_int, admin_id=session['admin_id'])
         if subtask_id_int:
             flash('Aufgabe und Teilaufgabe zugewiesen. ✅', 'success')
         else:

@@ -1118,7 +1118,7 @@ def delete_material(material_id):
 
 # ============ Student Task functions ============
 
-def assign_task_to_student(student_id, klasse_id, task_id, subtask_id=None):
+def assign_task_to_student(student_id, klasse_id, task_id, subtask_id=None, admin_id=None):
     """Assign a task to a student in a class.
 
     Args:
@@ -1126,6 +1126,7 @@ def assign_task_to_student(student_id, klasse_id, task_id, subtask_id=None):
         klasse_id: The class ID
         task_id: The task ID to assign
         subtask_id: Optional specific subtask to set as current (default: first subtask)
+        admin_id: Admin making the assignment (for visibility audit trail)
     """
     with db_session() as conn:
         # Get first subtask if subtask_id not provided
@@ -1142,14 +1143,19 @@ def assign_task_to_student(student_id, klasse_id, task_id, subtask_id=None):
             VALUES (?, ?, ?, 0, 0, ?)
         ''', (student_id, klasse_id, task_id, subtask_id))
 
+    # Auto-enable all subtasks so the student can see them
+    subtasks = get_subtasks(task_id)
+    for subtask in subtasks:
+        set_subtask_visibility_for_student(student_id, subtask['id'], True, admin_id)
 
-def assign_task_to_klasse(klasse_id, task_id, subtask_id=None):
+def assign_task_to_klasse(klasse_id, task_id, subtask_id=None, admin_id=None):
     """Assign a task to all students in a class.
 
     Args:
         klasse_id: The class ID
         task_id: The task ID to assign
         subtask_id: Optional specific subtask to set as current for all students (default: first subtask)
+        admin_id: Admin making the assignment (for visibility audit trail)
     """
     with db_session() as conn:
         # Get first subtask if subtask_id not provided
@@ -1169,6 +1175,11 @@ def assign_task_to_klasse(klasse_id, task_id, subtask_id=None):
                 INSERT OR REPLACE INTO student_task (student_id, klasse_id, task_id, abgeschlossen, manuell_abgeschlossen, current_subtask_id)
                 VALUES (?, ?, ?, 0, 0, ?)
             ''', (s['student_id'], klasse_id, task_id, subtask_id))
+
+    # Auto-enable all subtasks for the whole class
+    subtasks = get_subtasks(task_id)
+    for subtask in subtasks:
+        set_subtask_visibility_for_class(klasse_id, subtask['id'], True, admin_id)
 
 
 # ============================================================================
