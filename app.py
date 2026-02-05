@@ -490,6 +490,41 @@ def admin_themen():
     return render_template('admin/aufgaben.html', tasks=tasks, task_voraussetzungen=task_voraussetzungen, subjects=config.SUBJECTS, levels=config.LEVELS)
 
 
+@app.route('/admin/themen/export')
+@admin_required
+def admin_themen_export():
+    tasks = models.export_all_tasks()
+    data = {
+        'version': '1.0',
+        'exported_at': datetime.now().isoformat(),
+        'tasks': tasks
+    }
+    return Response(
+        json.dumps(data, ensure_ascii=False, indent=2),
+        mimetype='application/json',
+        headers={'Content-Disposition': 'attachment; filename=themen_export.json'}
+    )
+
+
+@app.route('/admin/thema/<int:task_id>/export')
+@admin_required
+def admin_thema_export(task_id):
+    task_data = models.export_task_to_dict(task_id)
+    if not task_data:
+        flash('Thema nicht gefunden.', 'danger')
+        return redirect(url_for('admin_themen'))
+    data = {
+        'version': '1.0',
+        'exported_at': datetime.now().isoformat(),
+        'task': task_data
+    }
+    return Response(
+        json.dumps(data, ensure_ascii=False, indent=2),
+        mimetype='application/json',
+        headers={'Content-Disposition': f'attachment; filename=thema_{task_id}_export.json'}
+    )
+
+
 @app.route('/admin/thema/neu', methods=['GET', 'POST'])
 @admin_required
 def admin_thema_neu():

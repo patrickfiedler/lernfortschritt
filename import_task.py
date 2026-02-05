@@ -162,6 +162,10 @@ def import_task(task_data, dry_run=False):
         print(f"  Task: {task['name']}")
         print(f"  Fach: {task['fach']}, Stufe: {task['stufe']}")
         print(f"  Kategorie: {task.get('kategorie', 'pflicht')}")
+        if task.get('number'):
+            print(f"  Nummer: {task['number']}")
+        if task.get('why_learn_this'):
+            print(f"  Warum: {task['why_learn_this'][:50]}...")
         if task.get('lernziel'):
             print(f"  Lernziel: {task['lernziel'][:50]}...")
         if task.get('voraussetzungen'):
@@ -185,7 +189,9 @@ def import_task(task_data, dry_run=False):
         fach=task['fach'],
         stufe=task['stufe'],
         kategorie=task.get('kategorie', 'pflicht'),
-        quiz_json=quiz_json
+        quiz_json=quiz_json,
+        number=task.get('number', 0),
+        why_learn_this=task.get('why_learn_this')
     )
 
     # Handle prerequisites (by name lookup)
@@ -203,7 +209,8 @@ def import_task(task_data, dry_run=False):
     subtasks = task.get('subtasks', [])
     for i, sub in enumerate(subtasks):
         reihenfolge = sub.get('reihenfolge', i)
-        models.create_subtask(task_id, sub['beschreibung'], reihenfolge)
+        estimated_minutes = sub.get('estimated_minutes')
+        models.create_subtask(task_id, sub['beschreibung'], reihenfolge, estimated_minutes)
 
     # Create materials
     materials = task.get('materials', [])

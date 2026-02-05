@@ -902,6 +902,94 @@ def check_voraussetzungen_erfuellt(student_id, klasse_id, task_id):
         return True
 
 
+# ============ Task Export ============
+
+def export_task_to_dict(task_id):
+    """Export a single task with all related data as a dictionary.
+
+    Returns a dict matching the import format from import_task.py, so that
+    exported JSON can be edited and re-imported.
+
+    Available helpers:
+        get_task(task_id) -> dict with: name, number, beschreibung, lernziel,
+                             fach, stufe, kategorie, quiz_json, why_learn_this
+        get_subtasks(task_id) -> list of dicts with: beschreibung, reihenfolge,
+                                 estimated_minutes
+        get_materials(task_id) -> list of dicts with: typ, pfad, beschreibung
+        get_task_voraussetzungen(task_id) -> list of task dicts (use their 'name')
+
+    For quiz: task['quiz_json'] is a JSON string or None. Use json.loads() to parse.
+
+    Return format (see import_task.py):
+        {
+            'name': ..., 'number': ..., 'beschreibung': ..., 'lernziel': ...,
+            'fach': ..., 'stufe': ..., 'kategorie': ..., 'why_learn_this': ...,
+            'subtasks': [{'beschreibung': ..., 'reihenfolge': ..., 'estimated_minutes': ...}],
+            'materials': [{'typ': ..., 'pfad': ..., 'beschreibung': ...}],
+            'quiz': {'questions': [...]} or None,
+            'voraussetzungen': ['task_name_1', ...]
+        }
+    """
+    task = get_task(task_id)
+    if (task is None):
+        return None
+    else:
+
+        subtasks = get_subtasks(task_id)
+        materials = get_materials(task_id)
+        task_voraussetzungen = get_task_voraussetzungen(task_id)
+        
+        subtasks_data = []
+        for subtask in subtasks:
+            subtasks_data.append({
+                'beschreibung': subtask['beschreibung'],
+                'reihenfolge': subtask['reihenfolge'],
+                'estimated_minutes': subtask['estimated_minutes']
+            })
+            
+        materials_data = []
+        for material in materials:
+            materials_data.append({
+                'typ': material['typ'],
+                'pfad': material['pfad'],
+                'beschreibung': material['beschreibung']
+            })
+            
+        if (task['quiz_json']):
+            quiz_data = json.loads(task['quiz_json'])
+        else:
+            quiz_data = None
+            
+        if (task_voraussetzungen is not None):
+            voraussetzungen_data = [v['name'] for v in task_voraussetzungen]
+        else:
+            voraussetzungen_data = []
+                  
+        data = {
+            'name': task['name'],
+            'number': task['number'],
+            'beschreibung': task['beschreibung'],
+            'lernziel': task['lernziel'],
+            'fach': task['fach'],
+            'stufe': task['stufe'],
+            'kategorie': task['kategorie'],
+            'why_learn_this': task['why_learn_this'],
+            'subtasks': subtasks_data,
+            'materials': materials_data,
+            'quiz': quiz_data,
+            'voraussetzungen': voraussetzungen_data          
+        }
+        return data
+          
+        
+
+
+def export_all_tasks():
+    """Export all tasks. Wraps each task with export_task_to_dict()."""
+    tasks = get_all_tasks()
+    return [export_task_to_dict(t['id']) for t in tasks]
+
+
 # ============ Wahlpflicht (Elective Groups) ============
 
 def create_wahlpflicht_gruppe(name, beschreibung, fach, stufe):
@@ -992,12 +1080,12 @@ def get_subtasks(task_id):
         return [dict(r) for r in rows]
 
 
-def create_subtask(task_id, beschreibung, reihenfolge=0):
+def create_subtask(task_id, beschreibung, reihenfolge=0, estimated_minutes=None):
     """Create a subtask."""
     with db_session() as conn:
         cursor = conn.execute(
-            "INSERT INTO subtask (task_id, beschreibung, reihenfolge) VALUES (?, ?, ?)",
-            (task_id, beschreibung, reihenfolge)
+            "INSERT INTO subtask (task_id, beschreibung, reihenfolge, estimated_minutes) VALUES (?, ?, ?, ?)",
+            (task_id, beschreibung, reihenfolge, estimated_minutes)
         )
         return cursor.lastrowid
 
