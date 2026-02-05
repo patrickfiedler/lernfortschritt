@@ -13,16 +13,16 @@
     </div>
 
     <div class="card">
-        <div class="card-header">📝 Aufgaben</div>
-        <p class="text-muted mb-1">{{ tasks|length }} Aufgabe(n)</p>
-        <a href="{{ url_for('admin_aufgaben') }}" class="btn btn-primary">Verwalten</a>
+        <div class="card-header">📝 Themen</div>
+        <p class="text-muted mb-1">{{ tasks|length }} Thema(en)</p>
+        <a href="{{ url_for('admin_themen') }}" class="btn btn-primary">Verwalten</a>
     </div>
 
     <div class="card">
         <div class="card-header">⚡ Schnellzugriff</div>
         <div class="flex flex-column gap-1">
             <a href="{{ url_for('admin_klasse_neu') if false else url_for('admin_klassen') }}" class="btn btn-secondary">+ Neue Klasse</a>
-            <a href="{{ url_for('admin_aufgabe_neu') }}" class="btn btn-secondary">+ Neue Aufgabe</a>
+            <a href="{{ url_for('admin_thema_neu') }}" class="btn btn-secondary">+ Neues Thema</a>
         </div>
     </div>
 </div>
@@ -50,7 +50,7 @@
             <div>
                 <strong>Seitenaufrufe protokollieren</strong>
                 <p class="text-muted" style="margin: 0.25rem 0 0 0; font-size: 0.875rem;">
-                    Wenn deaktiviert, werden nur wichtige Aktivitäten protokolliert (Aufgaben, Quiz, Downloads).
+                    Wenn deaktiviert, werden nur wichtige Aktivitäten protokolliert (Themen, Quiz, Downloads).
                     Dies kann die Leistung leicht verbessern.
                 </p>
             </div>

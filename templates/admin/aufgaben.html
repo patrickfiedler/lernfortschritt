@@ -1,11 +1,11 @@
 {% extends 'base.html' %}
 
-{% block title %}Aufgaben - Lernmanager{% endblock %}
+{% block title %}Themen - Lernmanager{% endblock %}
 
 {% block content %}
 <div class="flex flex-between flex-center mb-2">
-    <h1>📝 Aufgaben</h1>
-    <a href="{{ url_for('admin_aufgabe_neu') }}" class="btn btn-primary">+ Neue Aufgabe</a>
+    <h1>📝 Themen</h1>
+    <a href="{{ url_for('admin_thema_neu') }}" class="btn btn-primary">+ Neues Thema</a>
 </div>
 
 {% if tasks %}
@@ -24,7 +24,7 @@
             {% for task in tasks %}
             <tr>
                 <td>
-                    <a href="{{ url_for('admin_aufgabe_detail', task_id=task.id) }}">
+                    <a href="{{ url_for('admin_thema_detail', task_id=task.id) }}">
                         <strong>{{ task.name }}</strong>
                     </a>
                     {% if task_voraussetzungen[task.id] %}
@@ -41,7 +41,7 @@
                     {% endif %}
                 </td>
                 <td>
-                    <a href="{{ url_for('admin_aufgabe_detail', task_id=task.id) }}" class="btn btn-sm btn-secondary">Bearbeiten</a>
+                    <a href="{{ url_for('admin_thema_detail', task_id=task.id) }}" class="btn btn-sm btn-secondary">Bearbeiten</a>
                 </td>
             </tr>
             {% endfor %}
@@ -50,8 +50,8 @@
 </div>
 {% else %}
 <div class="card text-center text-muted">
-    <p>Noch keine Aufgaben vorhanden.</p>
-    <a href="{{ url_for('admin_aufgabe_neu') }}" class="btn btn-primary mt-1">Erste Aufgabe erstellen</a>
+    <p>Noch keine Themen vorhanden.</p>
+    <a href="{{ url_for('admin_thema_neu') }}" class="btn btn-primary mt-1">Erstes Thema erstellen</a>
 </div>
 {% endif %}
 {% endblock %}

@@ -1,10 +1,10 @@
 {% extends 'base.html' %}
 
-{% block title %}Teilaufgaben-Verwaltung - Lernmanager{% endblock %}
+{% block title %}Aufgaben-Verwaltung - Lernmanager{% endblock %}
 
 {% block content %}
 <div class="flex flex-between flex-center mb-2">
-    <h1>📋 Teilaufgaben-Verwaltung</h1>
+    <h1>📋 Aufgaben-Verwaltung</h1>
     <a href="{% if context == 'class' %}{{ url_for('admin_klasse_detail', klasse_id=klasse.id) }}{% else %}{{ url_for('admin_schueler_detail', student_id=student.id) }}{% endif %}" class="btn btn-secondary">← Zurück</a>
 </div>
 
@@ -17,9 +17,9 @@
             👤 Schüler: {{ student.vorname }} {{ student.nachname }} (Klasse: {{ klasse.name }})
         {% endif %}
     </div>
-    <p><strong>Aufgabe:</strong> {{ task.fach }} ({{ task.stufe }}): {{ task.name }}</p>
+    <p><strong>Thema:</strong> {{ task.fach }} ({{ task.stufe }}): {{ task.name }}</p>
     {% if context == 'class' %}
-        <p class="text-muted">Wähle die Teilaufgaben, die für alle Schüler dieser Klasse sichtbar sein sollen.</p>
+        <p class="text-muted">Wähle die Aufgaben, die für alle Schüler dieser Klasse sichtbar sein sollen.</p>
     {% else %}
         <p class="text-muted">Individuelle Einstellungen für diesen Schüler (überschreibt Klassenstandard).</p>
     {% endif %}
@@ -29,16 +29,16 @@
 <div class="card">
     <div class="card-header">
         {% if context == 'class' %}
-            ✅ Sichtbare Teilaufgaben
+            ✅ Sichtbare Aufgaben
         {% else %}
-            ✅ Individuelle Teilaufgaben-Einstellungen
+            ✅ Individuelle Aufgaben-Einstellungen
         {% endif %}
     </div>
 
     {% if not subtasks %}
         <div class="empty-state">
-            <p>⚠️ Diese Aufgabe hat noch keine Teilaufgaben.</p>
-            <p class="text-muted">Erstelle zuerst Teilaufgaben in der Aufgabenverwaltung.</p>
+            <p>⚠️ Dieses Thema hat noch keine Aufgaben.</p>
+            <p class="text-muted">Erstelle zuerst Aufgaben in der Themenverwaltung.</p>
         </div>
     {% else %}
 
@@ -334,7 +334,7 @@ function saveSettings() {
     const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
 
     // POST to backend
-    fetch('{{ url_for("admin_teilaufgaben_verwaltung_speichern") }}', {
+    fetch('{{ url_for("admin_aufgaben_verwaltung_speichern") }}', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -391,7 +391,7 @@ function resetToClassDefault() {
 
     const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
 
-    fetch('{{ url_for("admin_teilaufgaben_verwaltung_reset") }}', {
+    fetch('{{ url_for("admin_aufgaben_verwaltung_reset") }}', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',

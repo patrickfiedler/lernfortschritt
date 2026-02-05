@@ -369,11 +369,11 @@ def generate_class_report_pdf(report_data, date_from=None, date_to=None):
         elements.append(Paragraph(f"<b>Klassenuebersicht:</b> {total} Schueler", stats_style))
         elements.append(Paragraph(f"Aktive Schueler (im Berichtszeitraum): {active_last_week}", stats_style))
         elements.append(Paragraph(f"Durchschnittlicher Fortschritt: {avg_progress:.0f}%", stats_style))
-        elements.append(Paragraph(f"Aufgaben abgeschlossen: {completed}", stats_style))
+        elements.append(Paragraph(f"Themen abgeschlossen: {completed}", stats_style))
         elements.append(Spacer(1, 0.5*cm))
 
     # Table header
-    data = [['Name', 'Aufgabe', 'Fortschritt', 'Quiz', 'Login-Tage', 'Letzte Aktivitaet']]
+    data = [['Name', 'Thema', 'Fortschritt', 'Quiz', 'Login-Tage', 'Letzte Aktivitaet']]
 
     # Table rows
     for s in students:
@@ -513,7 +513,7 @@ def generate_student_report_pdf(report_data, report_type='summary'):
     tasks_count = len(summary['tasks_completed']) if isinstance(summary['tasks_completed'], list) else summary['tasks_completed']
     summary_data = [
         ['Aktive Lerntage', str(summary['login_days'])],
-        ['Aufgaben abgeschlossen', str(tasks_count)],
+        ['Themen abgeschlossen', str(tasks_count)],
         ['Quiz bestanden', str(summary['event_counts'].get('quiz_attempt', 0))],
         ['Dateien heruntergeladen', str(summary['event_counts'].get('file_download', 0))]
     ]
@@ -534,9 +534,9 @@ def generate_student_report_pdf(report_data, report_type='summary'):
 
     # Current tasks section
     if current_tasks:
-        elements.append(Paragraph("Aktuelle Aufgaben", section_style))
+        elements.append(Paragraph("Aktuelle Themen", section_style))
 
-        task_data = [['Klasse', 'Aufgabe', 'Fortschritt', 'Quiz', 'Status']]
+        task_data = [['Klasse', 'Thema', 'Fortschritt', 'Quiz', 'Status']]
         for task in current_tasks:
             progress = f"{task['completed_subtasks']}/{task['total_subtasks']}"
             quiz = '✓' if task['quiz_passed'] else '○'
@@ -588,8 +588,8 @@ def generate_student_report_pdf(report_data, report_type='summary'):
                     'login': 'Login',
                     'page_view': 'Seitenaufruf',
                     'file_download': 'Download',
-                    'subtask_complete': 'Teilaufgabe',
-                    'task_complete': 'Aufgabe fertig',
+                    'subtask_complete': 'Aufgabe',
+                    'task_complete': 'Thema fertig',
                     'quiz_attempt': 'Quiz',
                     'self_eval': 'Selbsteinschaetzung'
                 }
@@ -709,7 +709,7 @@ def generate_student_self_report_pdf(report_data):
         encouragement = f"Du warst {login_days} Tage aktiv. "
 
     if tasks_completed_count > 0:
-        encouragement += f"Du hast bereits {tasks_completed_count} Aufgabe{'n' if tasks_completed_count > 1 else ''} abgeschlossen. "
+        encouragement += f"Du hast bereits {tasks_completed_count} Thema{'en' if tasks_completed_count > 1 else ''} abgeschlossen. "
 
     if not encouragement:
         encouragement = "Deine Lernreise hat begonnen. "
@@ -734,7 +734,7 @@ def generate_student_self_report_pdf(report_data):
     if login_days > 0:
         metrics_data.append(['Aktive Lerntage', Paragraph(f"<b>{login_days}</b>", styles['Normal'])])
     if tasks_completed_count > 0:
-        metrics_data.append(['Aufgaben abgeschlossen', Paragraph(f"<b>{tasks_completed_count}</b>", styles['Normal'])])
+        metrics_data.append(['Themen abgeschlossen', Paragraph(f"<b>{tasks_completed_count}</b>", styles['Normal'])])
     if quiz_passes > 0:
         metrics_data.append(['Quiz bestanden', Paragraph(f"<b>{quiz_passes}</b>", styles['Normal'])])
 
@@ -757,7 +757,7 @@ def generate_student_self_report_pdf(report_data):
 
     # Current task progress
     if current_tasks:
-        elements.append(Paragraph("Deine aktuellen Aufgaben", section_style))
+        elements.append(Paragraph("Deine aktuellen Themen", section_style))
 
         task_data = []
         for task in current_tasks:
@@ -770,7 +770,7 @@ def generate_student_self_report_pdf(report_data):
             elif completed == total and not task['quiz_passed']:
                 progress_text = f"{completed}/{total} - Noch Quiz"
             elif completed > 0:
-                progress_text = f"{completed} von {total} Teilaufgaben"
+                progress_text = f"{completed} von {total} Aufgaben"
             else:
                 progress_text = "Bereit zum Start"
 

@@ -302,9 +302,9 @@ def admin_klasse_schueler_hinzufuegen(klasse_id):
     )
 
 
-@app.route('/admin/klasse/<int:klasse_id>/aufgabe-zuweisen', methods=['POST'])
+@app.route('/admin/klasse/<int:klasse_id>/thema-zuweisen', methods=['POST'])
 @admin_required
-def admin_klasse_aufgabe_zuweisen(klasse_id):
+def admin_klasse_thema_zuweisen(klasse_id):
     task_id = request.form['task_id']
     subtask_id = request.form.get('subtask_id')
     if task_id:
@@ -313,8 +313,8 @@ def admin_klasse_aufgabe_zuweisen(klasse_id):
         models.assign_task_to_klasse(klasse_id, int(task_id), subtask_id_int, admin_id=session['admin_id'])
 
         # Q1A: Interrupt workflow - redirect to subtask configuration
-        flash('Aufgabe zugewiesen. Bitte wähle nun die sichtbaren Teilaufgaben. ✅', 'success')
-        return redirect(url_for('admin_teilaufgaben_verwaltung_klasse', klasse_id=klasse_id, task_id=task_id))
+        flash('Thema zugewiesen. Bitte wähle nun die sichtbaren Aufgaben. ✅', 'success')
+        return redirect(url_for('admin_aufgaben_verwaltung_klasse', klasse_id=klasse_id, task_id=task_id))
 
     return redirect(url_for('admin_klasse_detail', klasse_id=klasse_id))
 
@@ -387,9 +387,9 @@ def admin_schueler_verschieben(student_id):
     return redirect(url_for('admin_schueler_detail', student_id=student_id))
 
 
-@app.route('/admin/schueler/<int:student_id>/aufgabe-zuweisen', methods=['POST'])
+@app.route('/admin/schueler/<int:student_id>/thema-zuweisen', methods=['POST'])
 @admin_required
-def admin_schueler_aufgabe_zuweisen(student_id):
+def admin_schueler_thema_zuweisen(student_id):
     klasse_id = request.form['klasse_id']
     task_id = request.form['task_id']
     subtask_id = request.form.get('subtask_id')
@@ -398,15 +398,15 @@ def admin_schueler_aufgabe_zuweisen(student_id):
         subtask_id_int = int(subtask_id) if subtask_id and subtask_id.strip() else None
         models.assign_task_to_student(student_id, int(klasse_id), int(task_id), subtask_id_int, admin_id=session['admin_id'])
         if subtask_id_int:
-            flash('Aufgabe und Teilaufgabe zugewiesen. ✅', 'success')
+            flash('Thema und Aufgabe zugewiesen. ✅', 'success')
         else:
-            flash('Aufgabe zugewiesen. ✅', 'success')
+            flash('Thema zugewiesen. ✅', 'success')
     return redirect(url_for('admin_schueler_detail', student_id=student_id))
 
 
-@app.route('/admin/schueler/<int:student_id>/teilaufgabe-setzen', methods=['POST'])
+@app.route('/admin/schueler/<int:student_id>/aufgabe-setzen', methods=['POST'])
 @admin_required
-def admin_schueler_teilaufgabe_setzen(student_id):
+def admin_schueler_aufgabe_setzen(student_id):
     """Update the current subtask for a student's task."""
     klasse_id = request.form['klasse_id']
     subtask_id = request.form.get('subtask_id')
@@ -418,21 +418,21 @@ def admin_schueler_teilaufgabe_setzen(student_id):
             subtask_id_int = int(subtask_id) if subtask_id and subtask_id.strip() else None
             models.set_current_subtask(student_task['id'], subtask_id_int)
             if subtask_id_int:
-                flash('Aktuelle Teilaufgabe aktualisiert. ✅', 'success')
+                flash('Aktuelle Aufgabe aktualisiert. ✅', 'success')
             else:
-                flash('Teilaufgaben-Filter entfernt (alle Teilaufgaben sichtbar). ✅', 'success')
+                flash('Aufgaben-Filter entfernt (alle Aufgaben sichtbar). ✅', 'success')
         else:
-            flash('Schüler hat keine Aufgabe in dieser Klasse.', 'warning')
+            flash('Schüler hat kein Thema in dieser Klasse.', 'warning')
     return redirect(url_for('admin_schueler_detail', student_id=student_id))
 
 
 @app.route('/admin/schueler/<int:student_id>/klasse/<int:klasse_id>/abschliessen', methods=['POST'])
 @admin_required
-def admin_schueler_aufgabe_abschliessen(student_id, klasse_id):
+def admin_schueler_thema_abschliessen(student_id, klasse_id):
     student_task = models.get_student_task(student_id, klasse_id)
     if student_task:
         models.mark_task_complete(student_task['id'], manual=True)
-        flash('Aufgabe manuell abgeschlossen. ✅', 'success')
+        flash('Thema manuell abgeschlossen. ✅', 'success')
     return redirect(request.referrer or url_for('admin_schueler_detail', student_id=student_id))
 
 
@@ -479,9 +479,9 @@ def admin_schueler_bericht(student_id):
 
 # ============ Admin: Tasks ============
 
-@app.route('/admin/aufgaben')
+@app.route('/admin/themen')
 @admin_required
-def admin_aufgaben():
+def admin_themen():
     tasks = models.get_all_tasks()
     # Get prerequisites for each task
     task_voraussetzungen = {}
@@ -490,9 +490,9 @@ def admin_aufgaben():
     return render_template('admin/aufgaben.html', tasks=tasks, task_voraussetzungen=task_voraussetzungen, subjects=config.SUBJECTS, levels=config.LEVELS)
 
 
-@app.route('/admin/aufgabe/neu', methods=['GET', 'POST'])
+@app.route('/admin/thema/neu', methods=['GET', 'POST'])
 @admin_required
-def admin_aufgabe_neu():
+def admin_thema_neu():
     if request.method == 'POST':
         task_id = models.create_task(
             name=request.form['name'],
@@ -508,20 +508,20 @@ def admin_aufgabe_neu():
         voraussetzung_ids = request.form.getlist('voraussetzungen')
         if voraussetzung_ids:
             models.set_task_voraussetzungen(task_id, [int(v) for v in voraussetzung_ids if v])
-        flash(f'Aufgabe erstellt. ✅', 'success')
-        return redirect(url_for('admin_aufgabe_detail', task_id=task_id))
+        flash('Thema erstellt. ✅', 'success')
+        return redirect(url_for('admin_thema_detail', task_id=task_id))
 
     tasks = models.get_all_tasks()
     return render_template('admin/aufgabe_form.html', task=None, tasks=tasks, voraussetzungen=[], subjects=config.SUBJECTS, levels=config.LEVELS)
 
 
-@app.route('/admin/aufgabe/<int:task_id>')
+@app.route('/admin/thema/<int:task_id>')
 @admin_required
-def admin_aufgabe_detail(task_id):
+def admin_thema_detail(task_id):
     task = models.get_task(task_id)
     if not task:
-        flash('Aufgabe nicht gefunden.', 'danger')
-        return redirect(url_for('admin_aufgaben'))
+        flash('Thema nicht gefunden.', 'danger')
+        return redirect(url_for('admin_themen'))
     subtasks = models.get_subtasks(task_id)
     materials = models.get_materials(task_id)
     all_tasks = models.get_all_tasks()
@@ -529,9 +529,9 @@ def admin_aufgabe_detail(task_id):
     return render_template('admin/aufgabe_detail.html', task=task, subtasks=subtasks, materials=materials, all_tasks=all_tasks, voraussetzungen=voraussetzungen, subjects=config.SUBJECTS, levels=config.LEVELS)
 
 
-@app.route('/admin/aufgabe/<int:task_id>/bearbeiten', methods=['POST'])
+@app.route('/admin/thema/<int:task_id>/bearbeiten', methods=['POST'])
 @admin_required
-def admin_aufgabe_bearbeiten(task_id):
+def admin_thema_bearbeiten(task_id):
     models.update_task(
         task_id=task_id,
         name=request.form['name'],
@@ -547,21 +547,21 @@ def admin_aufgabe_bearbeiten(task_id):
     # Handle multiple prerequisites
     voraussetzung_ids = request.form.getlist('voraussetzungen')
     models.set_task_voraussetzungen(task_id, [int(v) for v in voraussetzung_ids if v])
-    flash('Aufgabe aktualisiert. ✅', 'success')
-    return redirect(url_for('admin_aufgabe_detail', task_id=task_id))
+    flash('Thema aktualisiert. ✅', 'success')
+    return redirect(url_for('admin_thema_detail', task_id=task_id))
 
 
-@app.route('/admin/aufgabe/<int:task_id>/loeschen', methods=['POST'])
+@app.route('/admin/thema/<int:task_id>/loeschen', methods=['POST'])
 @admin_required
-def admin_aufgabe_loeschen(task_id):
+def admin_thema_loeschen(task_id):
     models.delete_task(task_id)
-    flash('Aufgabe gelöscht.', 'success')
-    return redirect(url_for('admin_aufgaben'))
+    flash('Thema gelöscht.', 'success')
+    return redirect(url_for('admin_themen'))
 
 
-@app.route('/admin/aufgabe/<int:task_id>/teilaufgaben', methods=['GET', 'POST'])
+@app.route('/admin/thema/<int:task_id>/aufgaben', methods=['GET', 'POST'])
 @admin_required
-def admin_aufgabe_teilaufgaben(task_id):
+def admin_thema_aufgaben(task_id):
     if request.method == 'GET':
         # API endpoint: return subtasks as JSON
         subtasks = models.get_subtasks(task_id)
@@ -571,36 +571,36 @@ def admin_aufgabe_teilaufgaben(task_id):
         subtasks_list = request.form.getlist('subtasks[]')
         estimated_minutes_list = request.form.getlist('estimated_minutes[]')
         models.update_subtasks(task_id, subtasks_list, estimated_minutes_list)
-        flash('Teilaufgaben aktualisiert.', 'success')
-        return redirect(url_for('admin_aufgabe_detail', task_id=task_id))
+        flash('Aufgaben aktualisiert.', 'success')
+        return redirect(url_for('admin_thema_detail', task_id=task_id))
 
 
-@app.route('/admin/aufgabe/<int:task_id>/material-link', methods=['POST'])
+@app.route('/admin/thema/<int:task_id>/material-link', methods=['POST'])
 @admin_required
-def admin_aufgabe_material_link(task_id):
+def admin_thema_material_link(task_id):
     url = request.form['url'].strip()
     beschreibung = request.form.get('beschreibung', '').strip()
     if url:
         models.create_material(task_id, 'link', url, beschreibung)
         flash('Link hinzugefügt. ✅', 'success')
-    return redirect(url_for('admin_aufgabe_detail', task_id=task_id))
+    return redirect(url_for('admin_thema_detail', task_id=task_id))
 
 
-@app.route('/admin/aufgabe/<int:task_id>/material-upload', methods=['POST'])
+@app.route('/admin/thema/<int:task_id>/material-upload', methods=['POST'])
 @admin_required
-def admin_aufgabe_material_upload(task_id):
+def admin_thema_material_upload(task_id):
     if 'file' not in request.files:
         flash('Keine Datei ausgewählt.', 'warning')
-        return redirect(url_for('admin_aufgabe_detail', task_id=task_id))
+        return redirect(url_for('admin_thema_detail', task_id=task_id))
 
     file = request.files['file']
     if file.filename == '':
         flash('Keine Datei ausgewählt.', 'warning')
-        return redirect(url_for('admin_aufgabe_detail', task_id=task_id))
+        return redirect(url_for('admin_thema_detail', task_id=task_id))
 
     if not (file and allowed_file(file.filename)):
         flash('Ungültiger Dateityp. Erlaubt: PDF, PNG, JPG, JPEG, GIF', 'danger')
-        return redirect(url_for('admin_aufgabe_detail', task_id=task_id))
+        return redirect(url_for('admin_thema_detail', task_id=task_id))
 
     try:
         # Ensure upload directory exists
@@ -609,7 +609,7 @@ def admin_aufgabe_material_upload(task_id):
         filename = secure_filename(file.filename)
         if not filename:
             flash('Ungültiger Dateiname.', 'danger')
-            return redirect(url_for('admin_aufgabe_detail', task_id=task_id))
+            return redirect(url_for('admin_thema_detail', task_id=task_id))
 
         # Add task_id to make filename unique
         filename = f"{task_id}_{filename}"
@@ -647,7 +647,7 @@ def admin_aufgabe_material_upload(task_id):
             except:
                 pass
 
-    return redirect(url_for('admin_aufgabe_detail', task_id=task_id))
+    return redirect(url_for('admin_thema_detail', task_id=task_id))
 
 
 @app.route('/admin/material/<int:material_id>/loeschen', methods=['POST'])
@@ -675,7 +675,7 @@ def admin_material_loeschen(material_id):
         app.logger.error(f'Error deleting material: {e}')
         flash('Fehler beim Löschen des Materials.', 'danger')
 
-    return redirect(request.referrer or url_for('admin_aufgaben'))
+    return redirect(request.referrer or url_for('admin_themen'))
 
 
 @app.route('/material/<int:material_id>/download')
@@ -734,23 +734,23 @@ def download_material(material_id):
 
 # ============ Admin: Teilaufgaben-Verwaltung (Subtask Visibility) ============
 
-@app.route('/admin/teilaufgaben-verwaltung/klasse/<int:klasse_id>')
+@app.route('/admin/aufgaben-verwaltung/klasse/<int:klasse_id>')
 @admin_required
-def admin_teilaufgaben_verwaltung_klasse(klasse_id):
+def admin_aufgaben_verwaltung_klasse(klasse_id):
     """Manage subtask visibility for a class.
 
     Implements Q1A (interrupt workflow) and Q2B (two-column UI).
     """
     task_id = request.args.get('task_id', type=int)
     if not task_id:
-        flash('Keine Aufgabe ausgewählt.', 'danger')
+        flash('Kein Thema ausgewählt.', 'danger')
         return redirect(url_for('admin_klasse_detail', klasse_id=klasse_id))
 
     # Get class and task info
     klasse = models.get_klasse(klasse_id)
     task = models.get_task(task_id)
     if not klasse or not task:
-        flash('Klasse oder Aufgabe nicht gefunden.', 'danger')
+        flash('Klasse oder Thema nicht gefunden.', 'danger')
         return redirect(url_for('admin_klassen'))
 
     # Get all subtasks for this task
@@ -767,9 +767,9 @@ def admin_teilaufgaben_verwaltung_klasse(klasse_id):
                            visibility=visibility)
 
 
-@app.route('/admin/teilaufgaben-verwaltung/schueler/<int:student_id>')
+@app.route('/admin/aufgaben-verwaltung/schueler/<int:student_id>')
 @admin_required
-def admin_teilaufgaben_verwaltung_schueler(student_id):
+def admin_aufgaben_verwaltung_schueler(student_id):
     """Manage subtask visibility for an individual student.
 
     Implements Q2B (two-column UI showing class vs student settings).
@@ -781,7 +781,7 @@ def admin_teilaufgaben_verwaltung_schueler(student_id):
         print(f"DEBUG: student_id={student_id}, task_id={task_id}, klasse_id={klasse_id}", flush=True)
 
         if not task_id or not klasse_id:
-            flash('Aufgabe oder Klasse nicht angegeben.', 'danger')
+            flash('Thema oder Klasse nicht angegeben.', 'danger')
             return redirect(url_for('admin_schueler_detail', student_id=student_id))
 
         # Get student, class, and task info
@@ -792,7 +792,7 @@ def admin_teilaufgaben_verwaltung_schueler(student_id):
         print(f"DEBUG: student={student}, klasse={klasse}, task={task}", flush=True)
 
         if not student or not klasse or not task:
-            flash('Schüler, Klasse oder Aufgabe nicht gefunden.', 'danger')
+            flash('Schüler, Klasse oder Thema nicht gefunden.', 'danger')
             return redirect(url_for('admin_schueler_detail', student_id=student_id))
 
         # Get all subtasks for this task
@@ -816,15 +816,15 @@ def admin_teilaufgaben_verwaltung_schueler(student_id):
                                class_visibility=class_visibility,
                                student_visibility=student_visibility)
     except Exception as e:
-        print(f"ERROR in admin_teilaufgaben_verwaltung_schueler: {e}", flush=True)
+        print(f"ERROR in admin_aufgaben_verwaltung_schueler: {e}", flush=True)
         import traceback
         traceback.print_exc()
         raise
 
 
-@app.route('/admin/teilaufgaben-verwaltung/speichern', methods=['POST'])
+@app.route('/admin/aufgaben-verwaltung/speichern', methods=['POST'])
 @admin_required
-def admin_teilaufgaben_verwaltung_speichern():
+def admin_aufgaben_verwaltung_speichern():
     """Save subtask visibility settings.
 
     Handles both class-wide and student-specific settings.
@@ -890,9 +890,9 @@ def admin_teilaufgaben_verwaltung_speichern():
         return jsonify({'success': False, 'message': f'Fehler beim Speichern: {str(e)}'}), 500
 
 
-@app.route('/admin/teilaufgaben-verwaltung/reset-to-class', methods=['POST'])
+@app.route('/admin/aufgaben-verwaltung/reset-to-class', methods=['POST'])
 @admin_required
-def admin_teilaufgaben_verwaltung_reset():
+def admin_aufgaben_verwaltung_reset():
     """Reset student-specific overrides to class defaults."""
     data = request.get_json()
 
@@ -933,21 +933,21 @@ def admin_wahlpflicht_neu():
     return redirect(url_for('admin_wahlpflicht'))
 
 
-@app.route('/admin/wahlpflicht/<int:gruppe_id>/aufgabe-hinzufuegen', methods=['POST'])
+@app.route('/admin/wahlpflicht/<int:gruppe_id>/thema-hinzufuegen', methods=['POST'])
 @admin_required
-def admin_wahlpflicht_aufgabe_hinzufuegen(gruppe_id):
+def admin_wahlpflicht_thema_hinzufuegen(gruppe_id):
     task_id = request.form.get('task_id')
     if task_id:
         models.add_task_to_wahlpflicht(gruppe_id, int(task_id))
-        flash('Aufgabe zur Gruppe hinzugefügt. ✅', 'success')
+        flash('Thema zur Gruppe hinzugefügt. ✅', 'success')
     return redirect(url_for('admin_wahlpflicht'))
 
 
-@app.route('/admin/wahlpflicht/<int:gruppe_id>/aufgabe/<int:task_id>/entfernen', methods=['POST'])
+@app.route('/admin/wahlpflicht/<int:gruppe_id>/thema/<int:task_id>/entfernen', methods=['POST'])
 @admin_required
-def admin_wahlpflicht_aufgabe_entfernen(gruppe_id, task_id):
+def admin_wahlpflicht_thema_entfernen(gruppe_id, task_id):
     models.remove_task_from_wahlpflicht(gruppe_id, task_id)
-    flash('Aufgabe aus Gruppe entfernt.', 'success')
+    flash('Thema aus Gruppe entfernt.', 'success')
     return redirect(url_for('admin_wahlpflicht'))
 
 
@@ -1346,7 +1346,7 @@ def student_klasse(klasse_id):
                            unterricht=unterricht)
 
 
-@app.route('/schueler/aufgabe/<int:student_task_id>/teilaufgabe/<int:subtask_id>', methods=['POST'])
+@app.route('/schueler/thema/<int:student_task_id>/aufgabe/<int:subtask_id>', methods=['POST'])
 @student_required
 def student_toggle_subtask(student_task_id, subtask_id):
     student_id = session['student_id']
@@ -1385,7 +1385,7 @@ def student_toggle_subtask(student_task_id, subtask_id):
     return jsonify({'status': 'ok', 'task_complete': False})
 
 
-@app.route('/schueler/aufgabe/<int:student_task_id>/quiz', methods=['GET', 'POST'])
+@app.route('/schueler/thema/<int:student_task_id>/quiz', methods=['GET', 'POST'])
 @student_required
 def student_quiz(student_task_id):
     student_id = session['student_id']
@@ -1401,13 +1401,13 @@ def student_quiz(student_task_id):
         ''', (student_task_id, student_id)).fetchone()
 
         if not task_row:
-            flash('Aufgabe nicht gefunden.', 'danger')
+            flash('Thema nicht gefunden.', 'danger')
             return redirect(url_for('student_dashboard'))
 
         task = dict(task_row)
 
     if not task['quiz_json']:
-        flash('Diese Aufgabe hat kein Quiz.', 'warning')
+        flash('Dieses Thema hat kein Quiz.', 'warning')
         return redirect(url_for('student_dashboard'))
 
     quiz = json.loads(task['quiz_json'])

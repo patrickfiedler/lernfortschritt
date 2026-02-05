@@ -74,8 +74,8 @@
 <!-- Assign Individual Task -->
 {% if klassen %}
 <div class="card mt-2">
-    <div class="card-header">📝 Individuelle Aufgabe zuweisen</div>
-    <form method="POST" action="{{ url_for('admin_schueler_aufgabe_zuweisen', student_id=student.id) }}" id="assign-student-task-form">
+    <div class="card-header">📝 Individuelles Thema zuweisen</div>
+    <form method="POST" action="{{ url_for('admin_schueler_thema_zuweisen', student_id=student.id) }}" id="assign-student-task-form">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <div class="flex gap-1 flex-center mb-1">
             <label>Klasse:</label>
@@ -84,9 +84,9 @@
                 <option value="{{ klasse.id }}">{{ klasse.name }}</option>
                 {% endfor %}
             </select>
-            <label>Aufgabe:</label>
+            <label>Thema:</label>
             <select name="task_id" id="student-task-select" class="form-control" style="flex: 1;" required onchange="loadSubtasksForStudent(this.value)">
-                <option value="">-- Aufgabe wählen --</option>
+                <option value="">-- Thema wählen --</option>
                 {% for task in tasks %}
                 <option value="{{ task.id }}">{{ task.fach }} ({{ task.stufe }}): {{ task.name }}</option>
                 {% endfor %}
@@ -94,18 +94,18 @@
             <button type="submit" class="btn btn-primary">Zuweisen</button>
         </div>
         <div id="student-subtask-selector" style="display: none;">
-            <label class="text-muted">Teilaufgabe (optional):</label>
+            <label class="text-muted">Aufgabe (optional):</label>
             <select name="subtask_id" id="student-subtask-select" class="form-control">
-                <option value="">Alle Teilaufgaben zeigen</option>
+                <option value="">Alle Aufgaben zeigen</option>
             </select>
-            <small class="text-muted">Wähle eine spezifische Teilaufgabe, um nur diese für den Schüler zu zeigen.</small>
+            <small class="text-muted">Wähle eine spezifische Aufgabe, um nur diese für den Schüler zu zeigen.</small>
         </div>
     </form>
 </div>
 
 <!-- Manage Current Subtask -->
 <div class="card mt-2">
-    <div class="card-header">🎯 Aktuelle Teilaufgabe verwalten</div>
+    <div class="card-header">🎯 Aktuelle Aufgabe verwalten</div>
     {% for klasse in klassen %}
     {% set task = student_tasks.get(klasse.id) %}
     {% if task and task.subtasks %}
@@ -118,12 +118,12 @@
             <span class="badge badge-secondary">Alle sichtbar</span>
             {% endif %}
         </div>
-        <form method="POST" action="{{ url_for('admin_schueler_teilaufgabe_setzen', student_id=student.id) }}">
+        <form method="POST" action="{{ url_for('admin_schueler_aufgabe_setzen', student_id=student.id) }}">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="hidden" name="klasse_id" value="{{ klasse.id }}">
             <div class="flex gap-1">
                 <select name="subtask_id" class="form-control" style="flex: 1;">
-                    <option value="">Alle Teilaufgaben zeigen</option>
+                    <option value="">Alle Aufgaben zeigen</option>
                     {% for sub in task.subtasks %}
                     <option value="{{ sub.id }}" {% if task.current_subtask and task.current_subtask.id == sub.id %}selected{% endif %}>
                         {{ loop.index }}. {{ sub.beschreibung[:60] }}{% if sub.beschreibung|length > 60 %}...{% endif %}
@@ -134,9 +134,9 @@
                 <button type="submit" class="btn btn-secondary">Aktualisieren</button>
             </div>
             {% if task.current_subtask %}
-            <small class="text-muted">Aktuell: Teilaufgabe {{ loop.index }} sichtbar</small>
+            <small class="text-muted">Aktuell: Aufgabe {{ loop.index }} sichtbar</small>
             {% else %}
-            <small class="text-muted">Alle {{ task.subtasks|length }} Teilaufgaben sichtbar</small>
+            <small class="text-muted">Alle {{ task.subtasks|length }} Aufgaben sichtbar</small>
             {% endif %}
         </form>
     </div>
@@ -150,13 +150,13 @@
         {% endif %}
     {% endfor %}
     {% if not klassen or not has_tasks_with_subtasks.value %}
-    <p class="text-muted">Keine aktiven Aufgaben mit Teilaufgaben.</p>
+    <p class="text-muted">Keine aktiven Themen mit Aufgaben.</p>
     {% endif %}
 </div>
 
 <!-- Subtask Visibility Management -->
 <div class="card mt-2">
-    <div class="card-header">📋 Teilaufgaben-Sichtbarkeit verwalten</div>
+    <div class="card-header">📋 Aufgaben-Sichtbarkeit verwalten</div>
     {% for klasse in klassen %}
     {% set task = student_tasks.get(klasse.id) %}
     {% if task %}
@@ -165,12 +165,12 @@
             <div>
                 <strong>{{ klasse.name }}: {{ task.name }}</strong>
                 <p class="text-muted" style="font-size: 0.85em; margin-top: 0.25rem;">
-                    Individuelle Teilaufgaben-Einstellungen für {{ student.vorname }}
+                    Individuelle Aufgaben-Einstellungen für {{ student.vorname }}
                 </p>
             </div>
-            <a href="{{ url_for('admin_teilaufgaben_verwaltung_schueler', student_id=student.id, task_id=task.task_id, klasse_id=klasse.id) }}"
+            <a href="{{ url_for('admin_aufgaben_verwaltung_schueler', student_id=student.id, task_id=task.task_id, klasse_id=klasse.id) }}"
                class="btn btn-primary">
-                ⚙️ Teilaufgaben konfigurieren
+                ⚙️ Aufgaben konfigurieren
             </a>
         </div>
     </div>
@@ -184,16 +184,16 @@
         {% endif %}
     {% endfor %}
     {% if not klassen or not has_tasks.value %}
-    <p class="text-muted">Keine aktiven Aufgaben.</p>
+    <p class="text-muted">Keine aktiven Themen.</p>
     {% endif %}
 </div>
 
 <!-- Manual Task Completion -->
 <div class="card mt-2">
-    <div class="card-header">✅ Aufgabe manuell abschließen</div>
+    <div class="card-header">✅ Thema manuell abschließen</div>
     <div class="flex gap-1">
         {% for klasse in klassen %}
-        <form method="POST" action="{{ url_for('admin_schueler_aufgabe_abschliessen', student_id=student.id, klasse_id=klasse.id) }}" style="display: inline;">
+        <form method="POST" action="{{ url_for('admin_schueler_thema_abschliessen', student_id=student.id, klasse_id=klasse.id) }}" style="display: inline;">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <button type="submit" class="btn btn-success">{{ klasse.name }} abschließen</button>
         </form>
@@ -223,7 +223,7 @@ function loadSubtasksForStudent(taskId) {
     .then(r => r.json())
     .then(subtasks => {
         // Clear existing options
-        subtaskSelect.innerHTML = '<option value="">Alle Teilaufgaben zeigen</option>';
+        subtaskSelect.innerHTML = '<option value="">Alle Aufgaben zeigen</option>';
 
         if (subtasks.length > 0) {
             subtasks.forEach((sub, index) => {

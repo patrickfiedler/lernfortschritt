@@ -50,12 +50,12 @@
 
 <!-- Assign Task to Class -->
 <div class="card mb-2">
-    <div class="card-header">📝 Aufgabe für alle zuweisen</div>
-    <form method="POST" action="{{ url_for('admin_klasse_aufgabe_zuweisen', klasse_id=klasse.id) }}" id="assign-task-form">
+    <div class="card-header">📝 Thema für alle zuweisen</div>
+    <form method="POST" action="{{ url_for('admin_klasse_thema_zuweisen', klasse_id=klasse.id) }}" id="assign-task-form">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <div class="flex gap-1 mb-1">
             <select name="task_id" id="task-select" class="form-control" style="flex: 1;" required onchange="loadSubtasks(this.value)">
-                <option value="">-- Aufgabe wählen --</option>
+                <option value="">-- Thema wählen --</option>
                 {% for task in tasks %}
                 <option value="{{ task.id }}">{{ task.fach }} ({{ task.stufe }}): {{ task.name }}</option>
                 {% endfor %}
@@ -63,11 +63,11 @@
             <button type="submit" class="btn btn-primary">Zuweisen</button>
         </div>
         <div id="subtask-selector" style="display: none;">
-            <label class="text-muted">Teilaufgabe (optional):</label>
+            <label class="text-muted">Aufgabe (optional):</label>
             <select name="subtask_id" id="subtask-select" class="form-control">
-                <option value="">Alle Teilaufgaben zeigen</option>
+                <option value="">Alle Aufgaben zeigen</option>
             </select>
-            <small class="text-muted">Wähle eine spezifische Teilaufgabe, um nur diese für alle Schüler zu zeigen.</small>
+            <small class="text-muted">Wähle eine spezifische Aufgabe, um nur diese für alle Schüler zu zeigen.</small>
         </div>
     </form>
 </div>
@@ -81,7 +81,7 @@
             <tr>
                 <th>Name</th>
                 <th>Benutzername</th>
-                <th>Aktuelle Aufgabe</th>
+                <th>Aktuelles Thema</th>
                 <th>Status</th>
                 <th>Aktionen</th>
             </tr>
@@ -108,7 +108,7 @@
                     {% elif student.task_id %}
                         <span class="badge badge-primary">🔄 In Arbeit</span>
                     {% else %}
-                        <span class="badge badge-warning">⏳ Keine Aufgabe</span>
+                        <span class="badge badge-warning">⏳ Kein Thema</span>
                     {% endif %}
                 </td>
                 <td>
@@ -144,7 +144,7 @@ function loadSubtasks(taskId) {
     .then(r => r.json())
     .then(subtasks => {
         // Clear existing options
-        subtaskSelect.innerHTML = '<option value="">Alle Teilaufgaben zeigen</option>';
+        subtaskSelect.innerHTML = '<option value="">Alle Aufgaben zeigen</option>';
 
         if (subtasks.length > 0) {
             subtasks.forEach((sub, index) => {

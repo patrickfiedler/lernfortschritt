@@ -17,7 +17,7 @@
         </div>
     </div>
     <div class="card" style="flex: 1; min-width: 150px;">
-        <div class="card-header">Aufgaben</div>
+        <div class="card-header">Themen</div>
         <div class="text-center" style="padding: 1rem; font-size: 2rem; font-weight: bold;">
             {{ summary.event_counts.get('task_complete', 0) }}
         </div>
@@ -86,9 +86,9 @@
                     {% elif event.event_type == 'file_download' %}
                         <span class="badge badge-info">Download</span>
                     {% elif event.event_type == 'subtask_complete' %}
-                        <span class="badge badge-warning">Teilaufgabe</span>
+                        <span class="badge badge-warning">Aufgabe</span>
                     {% elif event.event_type == 'task_complete' %}
-                        <span class="badge badge-primary">Aufgabe ✓</span>
+                        <span class="badge badge-primary">Thema ✓</span>
                     {% elif event.event_type == 'quiz_attempt' %}
                         <span class="badge badge-secondary">Quiz</span>
                     {% else %}
@@ -109,9 +109,9 @@
                             <span style="color: red;">✗ Nicht bestanden</span>
                         {% endif %}
                     {% elif event.event_type == 'task_complete' %}
-                        Aufgabe abgeschlossen
+                        Thema abgeschlossen
                     {% elif event.event_type == 'subtask_complete' %}
-                        Teilaufgabe abgeschlossen
+                        Aufgabe abgeschlossen
                     {% elif event.event_type == 'login' %}
                         Angemeldet als {{ event.metadata.get('username', student.username) }}
                     {% else %}

@@ -7,7 +7,7 @@
     <h1>🎯 Wahlpflichtgruppen</h1>
 </div>
 
-<p class="text-muted mb-2">Wahlpflichtgruppen enthalten mehrere Aufgaben, von denen Schüler eine auswählen und abschließen müssen.</p>
+<p class="text-muted mb-2">Wahlpflichtgruppen enthalten mehrere Themen, von denen Schüler eines auswählen und abschließen müssen.</p>
 
 <!-- Create new group -->
 <div class="card mb-2">
@@ -66,16 +66,16 @@
 
     <!-- Tasks in this group -->
     <div class="mb-2">
-        <strong>Aufgaben in dieser Gruppe:</strong>
+        <strong>Themen in dieser Gruppe:</strong>
         {% if gruppen_tasks[gruppe.id] %}
         <ul class="mt-1">
             {% for task in gruppen_tasks[gruppe.id] %}
             <li class="flex flex-between flex-center mb-05">
                 <span>
-                    <a href="{{ url_for('admin_aufgabe_detail', task_id=task.id) }}">{{ task.name }}</a>
+                    <a href="{{ url_for('admin_thema_detail', task_id=task.id) }}">{{ task.name }}</a>
                     <small class="text-muted">({{ task.fach }} {{ task.stufe }})</small>
                 </span>
-                <form method="POST" action="{{ url_for('admin_wahlpflicht_aufgabe_entfernen', gruppe_id=gruppe.id, task_id=task.id) }}" style="display: inline;">
+                <form method="POST" action="{{ url_for('admin_wahlpflicht_thema_entfernen', gruppe_id=gruppe.id, task_id=task.id) }}" style="display: inline;">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <button type="submit" class="btn btn-sm btn-secondary">Entfernen</button>
                 </form>
@@ -83,15 +83,15 @@
             {% endfor %}
         </ul>
         {% else %}
-        <p class="text-muted mt-1">Noch keine Aufgaben zugeordnet.</p>
+        <p class="text-muted mt-1">Noch keine Themen zugeordnet.</p>
         {% endif %}
     </div>
 
     <!-- Add task to group -->
-    <form method="POST" action="{{ url_for('admin_wahlpflicht_aufgabe_hinzufuegen', gruppe_id=gruppe.id) }}" class="flex gap-1">
+    <form method="POST" action="{{ url_for('admin_wahlpflicht_thema_hinzufuegen', gruppe_id=gruppe.id) }}" class="flex gap-1">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <select name="task_id" class="form-control" required>
-            <option value="">-- Aufgabe auswählen --</option>
+            <option value="">-- Thema auswählen --</option>
             {% for task in tasks %}
             {% if task.id not in gruppen_tasks[gruppe.id]|map(attribute='id')|list %}
             <option value="{{ task.id }}">{{ task.fach }} ({{ task.stufe }}): {{ task.name }}</option>
